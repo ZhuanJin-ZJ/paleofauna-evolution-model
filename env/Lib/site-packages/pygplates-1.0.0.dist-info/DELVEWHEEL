@@ -1,0 +1,2 @@
+Version: 1.10.0
+Arguments: ['C:\\gplates\\src\\pygplates\\venv_py3.9\\lib\\site-packages\\delvewheel\\__main__.py', 'repair', '-w', '_wheelhouse_py3.9', '_dist_py3.9\\pygplates-1.0.0-cp39-cp39-win_amd64.whl']

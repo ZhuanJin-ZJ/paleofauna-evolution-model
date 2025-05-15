@@ -1,0 +1,15 @@
+999    0.0   90.0    0.0    0.0  999 ! Colums: Plate ID, Age (Ma), Euler Pole Lat, Euler Pole Lon, Euler Angular Rotation, Relative/Conjugate Plate ID, "! " comment
+999    0.0   90.0    0.0    0.0  999 ! Any rotation entry with a Plate ID of 999 is ignored (i.e. commented out) 
+999    0.0   90.0    0.0    0.0  999 ! Ensure that your Plate ID is an integer
+100    0.0   90.0    0.0    0.0  000 ! Ensure that your master "tectonic" element ties back to 000 conjugate Plate ID, as this ensures a complete hierarchy to the Earth's spin axis 
+100 2500.0   90.0    0.0    0.0  000 ! Ensure that all your rotations go far enough back in time to capture all of your model
+200    0.0   90.0    0.0    0.0  100 ! The "zero" rotation at present-day means that the present-day geometries that GPlates uses are not displaced at 0 Ma
+200 2500.0   90.0    0.0    0.0  100 ! Once you have interactively (or manually) inserted rotations, copy the oldest one of these rotations into the oldest line of rotations for each Plate ID so that your tectonic elements do not drift back to their present-day position at the oldest model time 
+300    0.0   90.0    0.0    0.0  100 ! Make sure that you edit the rotation file with a TEXT editor (Notepad++ on Windows, Atom on macOS)
+300  2500.0  90.0    0.0    0.0  100 ! Do NOT edit the rotation file with MS Word or similar 
+400    0.0   90.0    0.0    0.0  200 ! Make sure that the file extension is "*.rot" 
+400  2500.0  90.0    0.0    0.0  200 ! Some Operating Systems have hidden file extensions (*.rot.txt), in which case the rotation file will not work in GPlates
+999    0.0   90.0    0.0    0.0  999 ! Your rotation entries can be space or tab delimited 
+999    0.0   90.0    0.0    0.0  999 ! Make sure that you do not have any blank lines in the rotation
+999    0.0   90.0    0.0    0.0  999 ! Ensure that you have an "!" at the end of the line, with text after that treated as a comment 
+999    0.0   90.0    0.0    0.0  999 ! More info on the (G)ROT format: http://www.earthbyte.org/Resources/Standardfileformats/CHHEI_RotFileStd.pdf
