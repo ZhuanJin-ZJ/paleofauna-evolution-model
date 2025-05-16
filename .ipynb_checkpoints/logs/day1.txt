@@ -1,0 +1,20 @@
+# Day 1 - Initial Setup
+
+**Date:** 2025-05-15  
+**Goal:** Load a base tectonic reconstruction model.
+
+### ✅ Achievements
+
+- Installed and configured pygplates (with GPlates 2.5 data).
+- Successfully loaded rotation model and tectonic features.
+- Tested basic reconstruction with static geometries.
+
+### 🔍 Notes
+
+- Used the Muller et al. (2022) dataset.
+- Visualized with `matplotlib` and `cartopy`, but continents were static.
+
+### 🚧 Next steps
+
+- Add reconstructable features like dynamic plate boundaries and coastlines.
+- Animate reconstructions across multiple geological times.

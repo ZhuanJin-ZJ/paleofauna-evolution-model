@@ -1,0 +1,23 @@
+# Day 2 - Dynamic Plate Boundaries
+
+**Date:** 2025-05-16  
+**Goal:** Reconstruct and visualize time-varying plate boundaries.
+
+### ✅ Achievements
+
+- Loaded dynamic features: `250-0_plate_boundaries.gpml`.
+- Used `pygplates.reconstruct()` to apply rotation model at 100 Ma.
+- Rendered shifting plate boundaries using `matplotlib` and `cartopy`.
+- Debugged common pitfalls (e.g., `PolylineOnSphere` vs `PolygonOnSphere`).
+- Learned that `ax.coastlines()` shows *present-day* continents.
+
+### 🔍 Insights
+
+- Reconstructable geometries must be rotated explicitly.
+- Continents don’t move unless `.gpml` coastlines are used.
+- `cfeature.LAND` is static — use rotated geometries instead.
+
+### 🚧 Next steps
+
+- Load reconstructable coastlines and plot continents over time.
+- Animate reconstruction from 250–0 Ma.
