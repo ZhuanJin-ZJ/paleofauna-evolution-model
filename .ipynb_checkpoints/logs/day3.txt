@@ -1,0 +1,8 @@
+# Day 3: Reconstructed ancient coastlines and overlaid them on dynamic plate boundaries at 250 Ma.
+
+- Loaded and reconstructed coastline features (`COB_polygons_and_coastlines_combined_1000_0_Merdith_etal.gpml`)
+- Used `.to_lat_lon_list()` for proper geometry conversion
+- Differentiated polygons and polylines
+- Successfully visualized paleogeography with colored overlays (red: plate boundaries, brown: coastlines)
+
+🔥 It worked beautifully. I'm getting a visual feel for Earth's tectonic history.
