@@ -1,0 +1,14 @@
+# Day 4: Dynamic loading of gpml files for full 1000–0 Ma reconstruction, modularised reconstruction of features
+
+🔧 Technical Wins:
+- Implemented conditional loading of plate boundary files based on reconstruction time:
+        1000–410 Ma: Multiple GPMLs (Convergence, Divergence, Transform, Topologies)
+        410–250 Ma: Single GPML
+        250–0 Ma: Another single GPML
+- Fixed the TypeError from trying to load multiple GPML files by creating separate FeatureCollection instances and merging them cleanly.
+- Modularized plotting with plot_reconstructed_features() and added basic color mapping.
+- Visualized coastlines and plate boundaries at arbitrary points in deep time (e.g., 150 Ma) using a Robinson projection.
+
+🧠 Insight:
+    GPlates datasets often don’t follow uniform formats, especially across large geological timescales.
+    Sometimes, brute force understanding (trial + documentation + Stack Overflow-style error debugging) is the only path forward.
