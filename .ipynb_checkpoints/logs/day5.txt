@@ -8,10 +8,16 @@
         Slider disappeared after one update — fixed by using interact() instead of observe() with manual clear_output().
         Plot didn’t update correctly due to overwritten or stale state — resolved by cleanly re-plotting and managing widget state.
 
-    Kept plate boundary and coastline reconstruction modular and clean, preserving flexibility for fossil layer integration.
+    - Fully modularised codebase:
+        tectonics.py handles data loading and reconstruction logic.
+        ui.py handles the widget interface and plotting logic.
+
+    - Fixed path resolution error by switching to absolute paths for the GPlates dataset directory (.rot and .gpml files).
+    - Established a clean project structure with plate_recon/ housing all reconstruction modules, making the codebase scalable and readable.
 
 🧠 Insight:
 	Interactive widgets demand a reactive coding mindset — procedural logic must yield to event-driven flow.
 	When building exploratory tools in Jupyter, the "UI state" and "data state" must be kept cleanly separated to avoid stale output or disappearing components.
-	
+	Modularisation isn’t just about clean code — it unlocks flexibility. With tectonic logic decoupled from the UI, I can now plug in a fossil layer, alternative climate models, or entirely new visualisations without rewriting foundational logic.
+
 The path is now clear to layer in fossils — a second dynamic data stream that will sit atop the tectonic base.
