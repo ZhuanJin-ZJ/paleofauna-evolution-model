@@ -1,0 +1,17 @@
+🗓️ Day 5: Time slider implemented for dynamic tectonic map reconstruction (0–1000 Ma)
+
+🔧 Technical Wins:
+
+    - Integrated ipywidgets.IntSlider to allow interactive geological time selection from 0–1000 Ma.
+    - Successfully connected the slider to the reconstruction pipeline — maps update in real time as the user scrolls through time.
+    - Solved critical issue where:
+        Slider disappeared after one update — fixed by using interact() instead of observe() with manual clear_output().
+        Plot didn’t update correctly due to overwritten or stale state — resolved by cleanly re-plotting and managing widget state.
+
+    Kept plate boundary and coastline reconstruction modular and clean, preserving flexibility for fossil layer integration.
+
+🧠 Insight:
+	Interactive widgets demand a reactive coding mindset — procedural logic must yield to event-driven flow.
+	When building exploratory tools in Jupyter, the "UI state" and "data state" must be kept cleanly separated to avoid stale output or disappearing components.
+	
+The path is now clear to layer in fossils — a second dynamic data stream that will sit atop the tectonic base.
