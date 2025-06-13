@@ -1,0 +1,21 @@
+🪨 Day 6 Log – Fossil Filtering, Refactoring, and Refocusing
+
+What I worked on today:
+    - Investigated why no fossil points were showing in reconstructions.
+    - Discovered a likely mismatch between PBDB column names and my internal naming conventions—probably filtering everything out unintentionally.
+    - Examined PBDB’s CSV output in detail to better understand its schema.
+    - Trimmed hardcoded paths and avoided repeated instantiation of the rotation model.
+    - Refactored fossils.py and tectonics.py to use a central config.py, making the project cleaner and easier to scale.
+    - Explored how to streamline data pipelines from fetch → cache → reconstruct.
+
+What I learned:
+    - Always sanity-check column names after fetching data—especially from APIs with automatic filtering or format changes.
+    - Shared config and resource injection (e.g., rotation model) makes debugging and modular development much easier.
+    - Fossil data requires not just spatial but temporal alignment, which I’ll need to debug more carefully.
+
+Next steps:
+    - Align internal arguments and filters with PBDB’s actual column names.
+    - Add more verbose logging to catch when data is silently excluded.
+    - Consider writing test cases to confirm fossils are being reconstructed correctly at different time windows.
+
+Mood: Frustrated but focused. Progress isn't always visible—but today felt like clearing the fog a little.

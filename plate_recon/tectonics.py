@@ -1,14 +1,9 @@
 import pygplates
 import os
+from config import BASE_PATH, rotation_model  # ⬅️ import shared config
 
-BASE_PATH = r'C:\Users\acer\paleofauna-model\GPlates 2.5.0\GeoData\FeatureCollections\AltPlateReconstructions\Muller_etal_2022'
-
-ROTATION_PATH = os.path.join(BASE_PATH, '1000_0_rotfile.rot')
 COASTLINES_PATH = os.path.join(BASE_PATH, 'COB_polygons_and_coastlines_combined_1000_0_Merdith_etal.gpml')
-
-rotation_model = pygplates.RotationModel(ROTATION_PATH)
 coastline_features = pygplates.FeatureCollection(COASTLINES_PATH)
-
 
 def get_plate_boundaries(reconstruction_time):
     if reconstruction_time > 410:
@@ -37,4 +32,3 @@ def reconstruct_coastlines(time):
     reconstructed = []
     pygplates.reconstruct(coastline_features, rotation_model, reconstructed, time)
     return reconstructed
- 

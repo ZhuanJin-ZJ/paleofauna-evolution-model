@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+from config import rotation_model
 from ipywidgets import IntSlider, VBox, Output
 from IPython.display import display
 from tectonics import get_plate_boundaries, reconstruct_features, reconstruct_coastlines
+from fossils import fetch_and_cache_fossils, reconstruct_fossil_locations
 
 def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
     for feature in reconstructed_geometries:
@@ -14,6 +16,11 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
                 ax.plot(lons, lats, '-', color=color_map.get(
                     'polygon' if 'Polygon' in geom.__class__.__name__ else 'polyline', 'black'),
                         transform=ccrs.Geodetic(), linewidth=0.5)
+
+def plot_fossils(ax, fossil_data, color='darkgreen'):
+    for fossil in fossil_data:
+        ax.plot(fossil['recon_lon'], fossil['recon_lat'], 'o',
+                transform=ccrs.Geodetic(), color=color, markersize=6)
 
 def create_ui():
     out = Output()
@@ -34,6 +41,14 @@ def create_ui():
 
             plot_reconstructed_features(ax, reconstructed_boundaries, {'polygon': 'red', 'polyline': 'blue'})
             plot_reconstructed_features(ax, reconstructed_coastlines, {'polygon': 'saddlebrown', 'polyline': 'saddlebrown'})
+
+            # === FOSSIL INTEGRATION ===
+            fossil_df = fetch_and_cache_fossils()
+            fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, window=5)
+            print(f"Fossils reconstructed: {len(fossil_data)}")
+            print(fossil_data[:3])
+            plot_fossils(ax, fossil_data)
+            
             plt.show()
 
     slider.observe(update_plot, names='value')
