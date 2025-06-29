@@ -1,0 +1,14 @@
+# Day 7–8: Independent fossil reconstruction and map overlay
+
+🔧 Technical Wins:
+- Created a fully standalone fossil reconstruction pipeline from scratch to isolate and test PBDB + PyGPlates logic.
+- Successfully fetched and filtered 10,000 Theropod fossils from PBDB via REST API, dropping rows without spatiotemporal data.
+- Debugged multiple silent failures by printing sanity checks and error traces line-by-line.
+- Reconstructed ~670 fossils in the 110 ± 5 Ma window using pygplates.RotationModel and geometry handling.
+- Fixed major PyGPlates bug: replaced invalid `Feature.create_point_feature()` with valid manual construction via `Feature()` + `.set_geometry(...)`.
+- Plotted reconstructed fossil locations on a global Robinson projection using Cartopy. ✅ Visual confirmation.
+
+🧠 Insight:
+    When your main pipeline gets too noisy, carve out a clean sandbox.
+    Debugging by print is still a high-leverage tool when you *don’t know what you don’t know*.
+    Always assume the documentation is incomplete — test the actual behavior of the library.
