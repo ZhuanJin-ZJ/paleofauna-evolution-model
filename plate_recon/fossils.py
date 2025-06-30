@@ -1,84 +1,78 @@
 import pandas as pd
+import pygplates
 import requests
+import os
 from io import StringIO
 
-#To align argument names with .csv column names from PBDB, across all functions. The mismatch is likely filtering out the fossils.
-
-def fetch_fossil_data(query_name='Theropoda', limit=None):
-    base_url = "https://paleobiodb.org/data1.2/occs/list.csv"
+# === FETCH ===
+def fetch_fossils(query_name='Theropoda', limit=10000):
+    url = "https://paleobiodb.org/data1.2/occs/list.csv"
     params = {
         'base_name': query_name,
         'show': 'coords,time,phylo',
-        'limit': limit or 100000
+        'limit': limit
     }
-
-    response = requests.get(base_url, params=params)
-
-    if response.status_code != 200:
-        raise Exception(f"PBDB request failed: {response.status_code}")
-
+    response = requests.get(url, params=params)
     df = pd.read_csv(StringIO(response.text))
-    print(f"📥 Fetched {len(df)} fossil rows from PBDB before filtering.")
+    print(f"✅ Raw fossils downloaded: {len(df)}")
 
-    # Drop fossils without coordinates or age data
     df = df.dropna(subset=['lng', 'lat', 'max_ma', 'min_ma'])
     df = df.rename(columns={'max_ma': 'early_age', 'min_ma': 'late_age'})
     df['midpoint_ma'] = (df['early_age'] + df['late_age']) / 2
-    print(f"🧹 Remaining after dropna and renaming: {len(df)}")
-
-    # Sanity check for empty result
-    if df.empty:
-        print(f"⚠️ Warning: No fossils found for query '{query_name}'.")
 
     return df
 
+def fetch_and_cache_fossils(csv_path=None, query_name='Theropoda'):
+    if csv_path is None:
+        # 🔧 Build absolute path relative to this file
+        base_dir = os.path.dirname(__file__)
+        csv_path = os.path.join(base_dir, '..', 'data', 'theropods.csv')
+        csv_path = os.path.normpath(csv_path)
 
-def fetch_and_cache_fossils(csv_path='data/theropods.csv', query_name='Theropoda'):
-    try:
+    if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
         print("✅ Loaded fossils from cache.")
-    except FileNotFoundError:
-        df = fetch_fossil_data(query_name)
+    else:
+        df = fetch_fossils(query_name)
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
         df.to_csv(csv_path, index=False)
         print("⬇️ Fetched fossils from PBDB and cached locally.")
     return df
 
+
+# === RECONSTRUCT ===
 def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time, window=5):
     filtered_df = fossil_df[
         (fossil_df['early_age'] >= reconstruction_time - window) &
         (fossil_df['late_age'] <= reconstruction_time + window)
     ]
 
-    print(f"🦴 Filtered fossil count at {reconstruction_time} ±{window} Ma: {len(filtered_df)}")
+    print(f"🦴 Filtered fossil count at {reconstruction_time} ± {window} Ma: {len(filtered_df)}")
 
     reconstructed = []
 
     for _, row in filtered_df.iterrows():
         point = pygplates.PointOnSphere(float(row['lat']), float(row['lng']))
-        time = float(row['midpoint_ma'])
         try:
-            recon_point = rotation_model.get_reconstructed_position(point, time)
-            if recon_point:
-                lat, lon = recon_point.to_lat_lon()
+            feature = pygplates.Feature()
+            feature.set_geometry(point)
+
+            reconstructed_features = []
+            pygplates.reconstruct([feature], rotation_model, reconstructed_features, float(row['midpoint_ma']))
+
+            if reconstructed_features:
+                lat, lon = reconstructed_features[0].get_reconstructed_geometry().to_lat_lon()
                 reconstructed.append({
                     'recon_lat': lat,
                     'recon_lon': lon,
-                    'taxon': row.get('accepted_name') or row.get('genus') or 'Unknown',
-                    'taxonomy': {
-                        'phylum': row.get('phylum'),
-                        'class': row.get('class'),
-                        'order': row.get('order'),
-                        'family': row.get('family'),
-                        'genus': row.get('genus'),
-                        'accepted_name': row.get('accepted_name'),
-                    },
                     'original_lat': row['lat'],
                     'original_lon': row['lng'],
-                    'age': time
+                    'age': row['midpoint_ma']
                 })
         except Exception as e:
-            print(f"❌ Failed to reconstruct point at {time} Ma: {e}")
+            print(f"❌ Failed to reconstruct point at {row['midpoint_ma']} Ma: {e}")
 
     return reconstructed
+
 
 

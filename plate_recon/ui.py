@@ -4,7 +4,11 @@ from config import rotation_model
 from ipywidgets import IntSlider, VBox, Output
 from IPython.display import display
 from tectonics import get_plate_boundaries, reconstruct_features, reconstruct_coastlines
+import importlib
+import fossils
+importlib.reload(fossils)
 from fossils import fetch_and_cache_fossils, reconstruct_fossil_locations
+
 
 def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
     for feature in reconstructed_geometries:
@@ -19,8 +23,10 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
 
 def plot_fossils(ax, fossil_data, color='darkgreen'):
     for fossil in fossil_data:
-        ax.plot(fossil['recon_lon'], fossil['recon_lat'], 'o',
-                transform=ccrs.Geodetic(), color=color, markersize=6)
+        ax.plot(
+            fossil['recon_lon'], fossil['recon_lat'], 'o',
+            transform=ccrs.Geodetic(), color=color, markersize=6
+        )
 
 def create_ui():
     out = Output()
@@ -50,7 +56,7 @@ def create_ui():
 
             fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, window=5)
             print(f"✅ Fossils reconstructed: {len(fossil_data)}")
-            print(fossil_data[:3])  # Preview first few reconstructions
+#            print(fossil_data[:3])  # Preview first few reconstructions
 
             plot_fossils(ax, fossil_data)
             plt.show()

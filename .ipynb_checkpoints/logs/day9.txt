@@ -1,0 +1,18 @@
+# Day 9: Fossil overlay integration into tectonic model
+
+🔧 Technical Wins:
+- Built a standalone MVP that fetches Theropod fossil data from PBDB, reconstructs their paleocoordinates using `pygplates`, and plots them on a Cartopy map at any geological time slice.
+- Created custom features from lat/lon and reconstructed them using the RotationModel + pygplates’ `reconstruct()` function.
+- Modularized the fossil code into `fossils.py`, with clean `fetch_and_cache_fossils()` and `reconstruct_fossil_locations()` functions.
+- Integrated fossil overlay into `ui.py`, plotting on top of tectonic boundaries and coastlines.
+- Added caching to avoid redundant API calls, and fixed file writing errors by checking for missing directories before saving.
+
+🧠 Insight:
+    Refreshing the kernel is sometimes needed before re-running. 
+    The code read stale code from an old version of fossils.py because Jupyter (or IPython) caches imported modules. 
+    Even after editing the file, the running kernel kept using the old version unless explicitly reloaded.
+
+🪛 Next:
+- Refactor fossil plotting for better color/shape controls
+- Allow toggling fossil groups (e.g., Theropoda, Ammonites, Flora)
+- Add UI warnings when no fossils are found in a given time slice
