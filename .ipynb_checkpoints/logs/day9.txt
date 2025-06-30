@@ -6,13 +6,26 @@
 - Modularized the fossil code into `fossils.py`, with clean `fetch_and_cache_fossils()` and `reconstruct_fossil_locations()` functions.
 - Integrated fossil overlay into `ui.py`, plotting on top of tectonic boundaries and coastlines.
 - Added caching to avoid redundant API calls, and fixed file writing errors by checking for missing directories before saving.
+- Modularized the plotting logic: Split fossil and tectonic plotting into discrete functions (plot_reconstructed_features, plot_fossils, and plot_all) for clarity and reuse.
+- Intelligent cache refreshing: Built logic into fetch_and_cache_fossils() to:
+    Delete stale CSVs when force_refresh=True
+    Invalidate in-memory caches
+    Avoid the need to manually refresh the kernel or reimport modules
+- UI uses fresh fossil data without manual intervention, making iterative work dramatically smoother.
+- Verified that disk vs. memory cache handling now behaves as intended, with accurate print messages ("in-memory", "disk", or "fetched").
 
 🧠 Insight:
     Refreshing the kernel is sometimes needed before re-running. 
     The code read stale code from an old version of fossils.py because Jupyter (or IPython) caches imported modules. 
     Even after editing the file, the running kernel kept using the old version unless explicitly reloaded.
+    The real culprit behind stale behavior was not just caching, but also direct imports after a module reload (from fossils import ...), which kept stale references even if the module was reloaded via importlib.
+    The fix? Reload the module, then rebind the functions explicitly from the reloaded module.
 
 🪛 Next:
-- Refactor fossil plotting for better color/shape controls
-- Allow toggling fossil groups (e.g., Theropoda, Ammonites, Flora)
 - Add UI warnings when no fossils are found in a given time slice
+✅ Done: Refactor fossil plotting
+- Add UI toggle for force_refresh (e.g., checkbox)
+- Enable taxon toggling – filter by fossil group (e.g., Theropoda, Ceratopsians)
+- Display fossil lifespan logic – fossils only appear in their valid time window
+- Introduce color legends for taxa
+- Phase III: integrate evolutionary trees and divergence tracking

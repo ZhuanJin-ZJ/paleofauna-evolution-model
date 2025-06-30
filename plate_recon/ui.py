@@ -5,9 +5,13 @@ from ipywidgets import IntSlider, VBox, Output
 from IPython.display import display
 from tectonics import get_plate_boundaries, reconstruct_features, reconstruct_coastlines
 import importlib
+import importlib
 import fossils
 importlib.reload(fossils)
-from fossils import fetch_and_cache_fossils, reconstruct_fossil_locations
+
+# Access functions via the module namespace to ensure you use the latest
+fetch_and_cache_fossils = fossils.fetch_and_cache_fossils
+reconstruct_fossil_locations = fossils.reconstruct_fossil_locations
 
 
 def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
@@ -31,7 +35,7 @@ def plot_fossils(ax, fossil_data, color='darkgreen'):
     for fossil in fossil_data:
         ax.plot(
             fossil['recon_lon'], fossil['recon_lat'], 'o',
-            transform=ccrs.Geodetic(), color=color, markersize=6
+            transform=ccrs.Geodetic(), color=color, markersize=1
         )
 
 
@@ -45,7 +49,8 @@ def plot_all(ax, time, window=5):
     plot_reconstructed_features(ax, reconstructed_boundaries, {'polygon': 'red', 'polyline': 'blue'})
     plot_reconstructed_features(ax, reconstructed_coastlines, {'polygon': 'saddlebrown', 'polyline': 'saddlebrown'})
 
-    fossil_df = fetch_and_cache_fossils()
+    FORCE_REFRESH = True  # or make it a UI toggle
+    fossil_df = fetch_and_cache_fossils(force_refresh=FORCE_REFRESH)
     print(f"🦴 Fossil data rows: {len(fossil_df)}")
 
     fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, window=window)

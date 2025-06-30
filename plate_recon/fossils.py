@@ -22,23 +22,45 @@ def fetch_fossils(query_name='Theropoda', limit=10000):
 
     return df
 
-def fetch_and_cache_fossils(csv_path=None, query_name='Theropoda'):
-    if csv_path is None:
-        # 🔧 Build absolute path relative to this file
-        base_dir = os.path.dirname(__file__)
-        csv_path = os.path.join(base_dir, '..', 'data', 'theropods.csv')
-        csv_path = os.path.normpath(csv_path)
 
-    if os.path.exists(csv_path):
-        df = pd.read_csv(csv_path)
-        print("✅ Loaded fossils from cache.")
+_cached_df = None  # Cache placeholder
+
+def fetch_and_cache_fossils(csv_path='data/theropods.csv', query_name='Theropoda', force_refresh=False):
+    global _cached_df
+
+    if not force_refresh and _cached_df is not None:
+        print("✅ Loaded fossils from in-memory cache.")
+        return _cached_df
+
+    if not force_refresh:
+        try:
+            df = pd.read_csv(csv_path)
+            print("✅ Loaded fossils from disk cache.")
+        except FileNotFoundError:
+            df = fetch_fossils(query_name)
+            os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+            df.to_csv(csv_path, index=False)
+            print("⬇️ Fetched fossils from PBDB and cached locally.")
     else:
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+            print("🗑️ Deleted existing fossil cache file.")
+        
         df = fetch_fossils(query_name)
         os.makedirs(os.path.dirname(csv_path), exist_ok=True)
         df.to_csv(csv_path, index=False)
-        print("⬇️ Fetched fossils from PBDB and cached locally.")
+        print("🔁 Force-refreshed fossil data and updated cache.")
+
+    _cached_df = df
     return df
 
+def clear_fossil_cache(csv_path='data/theropods.csv'):
+    global _cached_df
+    _cached_df = None
+    if os.path.exists(csv_path):
+        os.remove(csv_path)
+        print("🧨 Fully cleared fossil cache from disk and memory.")
+        
 
 # === RECONSTRUCT ===
 def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time, window=5):
@@ -73,6 +95,3 @@ def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time,
             print(f"❌ Failed to reconstruct point at {row['midpoint_ma']} Ma: {e}")
 
     return reconstructed
-
-
-
