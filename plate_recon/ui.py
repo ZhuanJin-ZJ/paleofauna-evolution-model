@@ -17,9 +17,15 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
             lat_lon_list = geom.to_lat_lon_list()
             if lat_lon_list:
                 lats, lons = zip(*lat_lon_list)
-                ax.plot(lons, lats, '-', color=color_map.get(
-                    'polygon' if 'Polygon' in geom.__class__.__name__ else 'polyline', 'black'),
-                        transform=ccrs.Geodetic(), linewidth=0.5)
+                ax.plot(
+                    lons, lats, '-', 
+                    color=color_map.get(
+                        'polygon' if 'Polygon' in geom.__class__.__name__ else 'polyline',
+                        'black'
+                    ),
+                    transform=ccrs.Geodetic(), linewidth=0.5
+                )
+
 
 def plot_fossils(ax, fossil_data, color='darkgreen'):
     for fossil in fossil_data:
@@ -28,6 +34,26 @@ def plot_fossils(ax, fossil_data, color='darkgreen'):
             transform=ccrs.Geodetic(), color=color, markersize=6
         )
 
+
+def plot_all(ax, time, window=5):
+    print(f"⏳ Reconstructing for time: {time} Ma")
+
+    features = get_plate_boundaries(time)
+    reconstructed_boundaries = reconstruct_features(features, time)
+    reconstructed_coastlines = reconstruct_coastlines(time)
+
+    plot_reconstructed_features(ax, reconstructed_boundaries, {'polygon': 'red', 'polyline': 'blue'})
+    plot_reconstructed_features(ax, reconstructed_coastlines, {'polygon': 'saddlebrown', 'polyline': 'saddlebrown'})
+
+    fossil_df = fetch_and_cache_fossils()
+    print(f"🦴 Fossil data rows: {len(fossil_df)}")
+
+    fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, window=window)
+    print(f"✅ Fossils reconstructed: {len(fossil_data)}")
+
+    plot_fossils(ax, fossil_data)
+
+
 def create_ui():
     out = Output()
     slider = IntSlider(value=110, min=0, max=1000, step=10, description='Time (Ma)', continuous_update=False)
@@ -35,33 +61,16 @@ def create_ui():
     def update_plot(change):
         with out:
             out.clear_output(wait=True)
-
             time = change['new']
-            print(f"⏳ Reconstructing for time: {time} Ma")
-
-            features = get_plate_boundaries(time)
-            reconstructed_boundaries = reconstruct_features(features, time)
-            reconstructed_coastlines = reconstruct_coastlines(time)
 
             fig = plt.figure(figsize=(12, 6))
             ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
-            ax.set_title(f"Reconstructed Plates and Coastlines at {time} Ma")
+            ax.set_global()
+            ax.set_title(f"Reconstructed Plates and Fossils at {time} Ma")
 
-            plot_reconstructed_features(ax, reconstructed_boundaries, {'polygon': 'red', 'polyline': 'blue'})
-            plot_reconstructed_features(ax, reconstructed_coastlines, {'polygon': 'saddlebrown', 'polyline': 'saddlebrown'})
-
-            # === FOSSIL INTEGRATION ===
-            fossil_df = fetch_and_cache_fossils()
-            print(f"🦴 Fossil data rows: {len(fossil_df)}")
-
-            fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, window=5)
-            print(f"✅ Fossils reconstructed: {len(fossil_data)}")
-#            print(fossil_data[:3])  # Preview first few reconstructions
-
-            plot_fossils(ax, fossil_data)
+            plot_all(ax, time)
             plt.show()
 
     slider.observe(update_plot, names='value')
     display(VBox([slider, out]))
     update_plot({'new': slider.value})
-
