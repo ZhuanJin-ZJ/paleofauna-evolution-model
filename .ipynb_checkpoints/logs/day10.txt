@@ -1,0 +1,108 @@
+
+ 🪨 **Day 10 Development Log**
+
+💣 Main challenge: Fossils loaded but appeared to be unrotated from modern-day coordinates. 
+
+🛠️ Technical Wins
+
+* **Successful fossil rotation with `pygplates`:**
+  Debugged and verified that fossil coordinates are now being correctly rotated according to their assigned plates and reconstruction time using a global rotation model.
+
+* **Validated plate assignments via `partition_into_plates`:**
+  After multiple iterations and tests, ensured fossils were being matched to the correct tectonic plates. 
+  This involved checking distances between fossil points and polygon boundaries, as well as visual and printed verification.
+	- checked that geometries and plate IDs are present — which is critical for later assignments of fossils to plates.
+	- successfully implemented partition_into_plates on fossil locations, where previously partitioned fossils disappeared.
+	- but despite fossils being successfully partitioned into plates, and those plates having correct plate IDs, 
+	  the fossils still looked like they weren't being rotated...
+
+* **Debugged with targeted print statements:**
+  Used precise print diagnostics to verify both the rotation of coastlines and individual fossil points. Fossils displayed meaningful spatial deltas from modern coordinates, confirming successful transformation.
+	- Printed lat-lon before and after rotation.
+	- Output confirmed that fossils are being rotated, but visually it still looked like fossils in the Western hemisphere
+	  were clustered around modern-day coastlines around North and South America.
+	- Being certain that the fossil logic was solid, began to suspect the plotting logic instead. 
+
+	 Maybe:
+	 1) the fossils were being rotated in the function, but the plotting logic used the unrotated, modern-day 
+	    fossil coordinates.
+	 2) the fossils were correctly rotated in the function and the plot, and it is just happenstance that the
+	    fossils appear to be clustered according to modern-day coastlines.
+	 3) the fossils were correctly rotated in the function and the plot, and their position was distorted by 
+	    the map projection. This led me to...
+
+* ** Check coastline rotation as ground truth:**
+  Rotated and plotted coastlines over time to visually confirm that the underlying plate reconstruction logic was geologically consistent and accurate.
+  This ensured I was seeing truly paleo-coastlines, not accidentally unrotated ones.
+
+* ** Investigated PlateCarree vs Robinson projection:**
+  And found that in both projections the fossils in the Western hemisphere _still_ clustered around modern-day coastlines around North and South America.
+
+* ** Implemented fossil displacement vectors**
+  Having eliminated potential obfuscation due to whether the coastlines were rotated or the fossil locations were distorted 
+  by map projections...
+
+  What remained was to prove visually that fossils were *indeed* being rotated, regardless of whether they _appeared_ unrotated.
+
+  This led to the idea of:
+  - plotting both the modern-day fossil locations AND the paleoposition of those fossils on the same map
+  - plotting arrows to show exactly which fossils in deep time, were rotated from which modern-day positions.
+
+  This would prove that any apparent clustering of fossils around present-day Americas is an _artifact_.
+
+
+* **Fixed coordinate system mismatch in `quiver()` plotting:**
+  Resolved various errors relating to data input mismatch:
+  - ax.quiver expecting arrays not lists as inputs, necessitating a data type conversion. Single floats also caused errors.
+  - ax.quiver does not work on spherical maps, therefore needed to change from ccrs.Geodetic to ccrs.PlateCarree
+  ensuring velocity vectors and fossils rendered correctly on the dynamic map.
+  - When the ax.quiver arrows did load, I got hexagons, and they didn't even directly connect the gray dots to the 
+  dark-green dots like I expected. This led me to realise...
+  -I should just plot individual arrows manually, fully dropping ax.quiver and using 
+        ax.plot(
+            [orig_lon, recon_lon], [orig_lat, recon_lat],
+            transform=ccrs.Geodetic(), color=color,
+            linewidth=0.7, alpha=0.7
+        )
+   which tells Cartopy to handle these as great-circle arcs on the globe — the correct way to represent geographic motion.
+
+
+... and after all that... I got vectors unambiguously showing that fossils were rotating from their modern locations 
+ to their paleopositions.
+
+This marks the end of 🔥🔥🔥 Phase II - Rewinding fossils in deep time on the paleofauna-tectonic map 🔥🔥🔥
+
+
+---
+
+💡 Insights
+
+* **Rotation doesn’t imply visual displacement without correct plate anchoring:**
+  Fossils may appear unchanged in position unless they're correctly matched to their respective plates and rotated relative to the reconstruction reference frame.
+
+* **Effective debugging requires process of elimination of errors at each transformation stage:**
+  By separating concerns—(1) plate assignment, (2) rotation logic, and (3) plotting — I created a reproducible and debuggable pipeline.
+
+* **Read the documentation on important functions like partition_into_plates**
+  partition_into_plates did not work because there was an insufficient number of arguments and because the arguments were in the wrong order. 
+  This could have been avoided by reading the documentation on the GPlates API.
+
+* **Visual clues are essential but insufficient:**
+  Initial confusion due to fossils clustering near modern coastlines revealed how even apparently "working" plots can mask deeper logic flaws.
+
+---
+
+🧭 Next Steps (Phase III: Evolutionary Divergence)
+
+* **Implement taxonomy parsing:**
+  Begin grouping fossil points by taxonomic clades or families using PBDB data.
+
+* **Overlay cladograms:**
+  Load and visually align known phylogenetic trees to track divergence events alongside continental drift.
+
+* **Map divergence events to tectonic history:**
+  Investigate whether major evolutionary splits correlate with physical separation of landmasses or climate shifts.
+
+* **Explore speciation hypothesis modeling:**
+  Build a framework to test whether geographic isolation due to tectonics plausibly explains observed bifurcations in the fossil record.
+
