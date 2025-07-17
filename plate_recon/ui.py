@@ -5,7 +5,6 @@ from ipywidgets import IntSlider, VBox, Output
 from IPython.display import display
 from tectonics import get_plate_boundaries, reconstruct_features, reconstruct_coastlines
 import importlib
-import importlib
 import fossils
 importlib.reload(fossils)
 
@@ -35,7 +34,7 @@ def plot_fossils(ax, fossil_data, color='darkgreen'):
     for fossil in fossil_data:
         ax.plot(
             fossil['recon_lon'], fossil['recon_lat'], 'o',
-            transform=ccrs.Geodetic(), color=color, markersize=1
+            transform=ccrs.Geodetic(), color=color, markersize=3
         )
 
 
