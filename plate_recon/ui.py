@@ -30,11 +30,29 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
                 )
 
 
-def plot_fossils(ax, fossil_data, color='darkgreen'):
+def plot_fossils(ax, fossil_data, color='darkgreen', original=False):
     for fossil in fossil_data:
+        lat = fossil['original_lat'] if original else fossil['recon_lat']
+        lon = fossil['original_lon'] if original else fossil['recon_lon']
         ax.plot(
-            fossil['recon_lon'], fossil['recon_lat'], 'o',
-            transform=ccrs.Geodetic(), color=color, markersize=3
+            lon, lat, 'o',
+            transform=ccrs.Geodetic(), 
+            color='gray' if original else color, 
+            markersize=3, alpha=0.6 if original else 1.0
+        )
+
+
+def plot_fossil_vectors(ax, fossil_data, color='red'):
+    for fossil in fossil_data:
+        orig_lat = fossil['original_lat']
+        orig_lon = fossil['original_lon']
+        recon_lat = fossil['recon_lat']
+        recon_lon = fossil['recon_lon']
+
+        ax.plot(
+            [orig_lon, recon_lon], [orig_lat, recon_lat],
+            transform=ccrs.Geodetic(), color=color,
+            linewidth=0.7, alpha=0.7
         )
 
 
@@ -55,7 +73,9 @@ def plot_all(ax, time, window=5):
     fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, window=window)
     print(f"✅ Fossils reconstructed: {len(fossil_data)}")
 
-    plot_fossils(ax, fossil_data)
+    plot_fossils(ax, fossil_data, color='darkgreen')             # Reconstructed
+    plot_fossils(ax, fossil_data, color='gray', original=True)   # Present-day
+    plot_fossil_vectors(ax, fossil_data, color='red')            # Arrows between them
 
 
 def create_ui():
