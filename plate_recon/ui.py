@@ -55,8 +55,25 @@ def plot_fossil_vectors(ax, fossil_data, color='red'):
             linewidth=0.7, alpha=0.7
         )
 
+def draw_dynamic_legend(ax, active_layers):
+    from matplotlib.lines import Line2D
+    
+    legend_elements = []
+    if active_layers.get('reconstructed_fossils'):
+        legend_elements.append(Line2D([0], [0], marker='o', color='darkgreen', label='Reconstructed Fossils', linestyle='None'))
+    if active_layers.get('present_day_fossils'):
+        legend_elements.append(Line2D([0], [0], marker='o', color='gray', label='Present-Day Fossils', linestyle='None'))
+    if active_layers.get('vectors'):
+        legend_elements.append(Line2D([0], [0], color='red', lw=1, label='Displacement Vectors'))
+    if active_layers.get('coastlines'):
+        legend_elements.append(Line2D([0], [0], color='saddlebrown', lw=1, label='Coastlines'))
+    if active_layers.get('plate_boundaries'):
+        legend_elements.append(Line2D([0], [0], color='blue', lw=1, label='Plate Boundaries'))
 
-def plot_all(ax, time, window=5):
+    ax.legend(handles=legend_elements, loc='lower right')
+
+
+def plot_all(ax, time, window=5, export=False, outdir="exports"):
     print(f"⏳ Reconstructing for time: {time} Ma")
 
     features = get_plate_boundaries(time)
@@ -77,11 +94,34 @@ def plot_all(ax, time, window=5):
     plot_fossils(ax, fossil_data, color='gray', original=True)   # Present-day
     plot_fossil_vectors(ax, fossil_data, color='red')            # Arrows between them
 
+    active_layers = {
+    'reconstructed_fossils': True,
+    'present_day_fossils': True,
+    'vectors': True,
+    'coastlines': True,
+    'plate_boundaries': True,
+    }
+    draw_dynamic_legend(ax, active_layers)
+
+    if export:
+        import os
+        os.makedirs(outdir, exist_ok=True)
+        fname = os.path.join(outdir, f"frame_{time:04d}Ma.png")
+        plt.savefig(fname, dpi=200, bbox_inches="tight")
+        print(f"💾 Saved: {fname}")
+
 
 def create_ui():
-    out = Output()
-    slider = IntSlider(value=110, min=0, max=1000, step=10, description='Time (Ma)', continuous_update=False)
+    from ipywidgets import Button
+    from animation import run_animation
 
+    out = Output()
+    slider = IntSlider(
+        value=110, min=0, max=1000, step=10,
+        description='Time (Ma)', continuous_update=False
+    )
+
+    # --- Plot updater for slider ---
     def update_plot(change):
         with out:
             out.clear_output(wait=True)
@@ -96,5 +136,21 @@ def create_ui():
             plt.show()
 
     slider.observe(update_plot, names='value')
-    display(VBox([slider, out]))
+
+    # --- Animation button ---
+    button = Button(description="Run Animation", button_style="info")
+
+    def on_button_click(b):
+        with out:
+            out.clear_output(wait=True)
+            print("🎬 Running animation...")
+            run_animation(start=0, end=250, step=10, export=False, outdir="exports")
+            print("✅ Animation complete. Frames saved in 'exports/'")
+
+    button.on_click(on_button_click)
+
+    # Display both slider + button + output
+    display(VBox([slider, button, out]))
+
+    # Initialize with current slider value
     update_plot({'new': slider.value})

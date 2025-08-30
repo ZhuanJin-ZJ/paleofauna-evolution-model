@@ -1,0 +1,15 @@
+# Day 11: Dynamic legend, image exporting, and animation across time
+
+🔧 Technical Wins:
+- Added a dynamic legend. Going forward, the dynamic aspect of the legend will be useful when I add parent and child lineages 
+  in the fossil record, since depending on the time slice I am evaluating the model at, some fossils may or may not exist at 
+  that time slice. I want the legend to reflect this automatically.
+- Added an image-exporting function to ui.py. There is a toggle to turn this on or off. 
+- Added animation.py as a module, which loops my code through time steps of 10 Ma, going from the present day to 250 Ma.
+- All new features work!
+
+🪛 Next:
+- Each fossil should live on its own timeline, and this should be conceptually and operationally independent of the rewind time.
+  The rewind time should act as a "slice" through all fossil "lifetimes" at the specified rewind time
+- It looks like my "Present-day fossils" move, back in time. This is not what I would expect. To investigate.
+- Onto Phase III!
