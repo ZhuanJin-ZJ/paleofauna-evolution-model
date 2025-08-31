@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from ui import plot_all
+import utils
 
 def run_animation(start=0, end=250, step=10, export=False, outdir="exports"):
+    utils.VERBOSE = False    # Silence logs globally
     ### Animate tectonic & fossil reconstructions.
     #   Args:
         # start (int): starting Ma (default 0, present-day).
@@ -19,7 +21,7 @@ def run_animation(start=0, end=250, step=10, export=False, outdir="exports"):
         ax.set_global()
         ax.set_title(f"Reconstructed Plates and Fossils at {t} Ma")
 
-        plot_all(ax, t, window=5, export=export, outdir=outdir)
+        plot_all(ax, t, export=export, outdir=outdir)
 
         if not export:
             plt.show()

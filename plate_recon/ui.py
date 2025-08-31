@@ -7,6 +7,7 @@ from tectonics import get_plate_boundaries, reconstruct_features, reconstruct_co
 import importlib
 import fossils
 importlib.reload(fossils)
+from utils import log
 
 # Access functions via the module namespace to ensure you use the latest
 fetch_and_cache_fossils = fossils.fetch_and_cache_fossils
@@ -64,7 +65,7 @@ def draw_dynamic_legend(ax, active_layers):
     if active_layers.get('present_day_fossils'):
         legend_elements.append(Line2D([0], [0], marker='o', color='gray', label='Present-Day Fossils', linestyle='None'))
     if active_layers.get('vectors'):
-        legend_elements.append(Line2D([0], [0], color='red', lw=1, label='Displacement Vectors'))
+        legend_elements.append(Line2D([0], [0], color='red', lw=1, label='Net Displacement Vectors'))
     if active_layers.get('coastlines'):
         legend_elements.append(Line2D([0], [0], color='saddlebrown', lw=1, label='Coastlines'))
     if active_layers.get('plate_boundaries'):
@@ -73,7 +74,7 @@ def draw_dynamic_legend(ax, active_layers):
     ax.legend(handles=legend_elements, loc='lower right')
 
 
-def plot_all(ax, time, window=5, export=False, outdir="exports"):
+def plot_all(ax, time, export=False, outdir="exports"):
     print(f"⏳ Reconstructing for time: {time} Ma")
 
     features = get_plate_boundaries(time)
@@ -85,10 +86,10 @@ def plot_all(ax, time, window=5, export=False, outdir="exports"):
 
     FORCE_REFRESH = True  # or make it a UI toggle
     fossil_df = fetch_and_cache_fossils(force_refresh=FORCE_REFRESH)
-    print(f"🦴 Fossil data rows: {len(fossil_df)}")
+    log(f"🦴 Fossil data rows: {len(fossil_df)}")
 
-    fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, window=window)
-    print(f"✅ Fossils reconstructed: {len(fossil_data)}")
+    fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time)
+    log(f"✅ Fossils reconstructed: {len(fossil_data)}")
 
     plot_fossils(ax, fossil_data, color='darkgreen')             # Reconstructed
     plot_fossils(ax, fossil_data, color='gray', original=True)   # Present-day

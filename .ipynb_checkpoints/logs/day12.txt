@@ -1,0 +1,35 @@
+🪨 Day 12 Development Log
+
+💣 Main challenge: Distinguishing between time of fossil existence and rewind time when reconstructing paleopositions. Filtering logic had been too “fuzzy,” leading to misleading fossil persistence in animations.
+
+🛠️ Technical Wins
+
+- Cleaned up temporal filtering:
+  Removed the old ±5 Ma “fuzzy” window, which allowed fossils to appear active outside their true stratigraphic range.
+  Eliminated the unused midpoint_ma column, simplifying the fossil data pipeline.
+  Result: only fossils genuinely extant at the rewind time survive into reconstruction.
+- Global debugging toggle (utils.py):
+  Centralized all print() diagnostics into a log() wrapper controlled by a VERBOSE flag.
+  This allows smooth animations without clutter, while still enabling granular tracing during debugging sessions.
+- Metadata preservation in reconstruction:
+  Refactored reconstruct_fossil_locations so each fossil’s genus/taxon metadata flows into the reconstructed output.
+  Reconstructed fossils now retain both spatial and phylogenetic context, enabling Phase III visualizations (e.g. color-coding by genus to reveal divergence patterns).
+
+💡 Insights
+
+- Each fossil should "live" on its own timeline, beginning from the age of the oldest fossil representing that species and ending with the most recent fossil representative.
+  The rewind time is independent of this fossil timeline. The rewind time "slices" the timeline of each fossil; if the rewind time
+  falls within the 'active' window of that fossil, the fossil will show, and if the rewind time falls outside that window, the fossil
+  will be filtered out and will not display. I correctly implemented the logic the first time round, but had doubts. Now I am sure.
+- Why grey dots seemed to “move”:
+  I previously assumed that grey dots (present-day fossil locations) represented the same fossils across all frames. In fact, as time rewinds, fossils enter and exit based on their stratigraphic ages. The shifting pattern of grey dots is a real artifact of temporal filtering, not a plotting bug.
+- Pipeline clarity = fewer false leads:
+  By explicitly separating “fossil lifespan filtering” from “fossil spatial rewinding,” I now have a much clearer understanding of why fossil counts and positions evolve dynamically across frames.
+
+🧭 Next Steps (Phase III: Evolutionary Divergence)
+
+- Write grant applications!
+- Write articles publicising my work!
+
+- Look into how I can implement my planned Y-branching evolutionary bifurcation function
+- Look into where I can source my cladogram data from, and how to harmonise the data.
