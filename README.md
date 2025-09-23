@@ -22,6 +22,8 @@ This project is licensed under the **GNU Affero General Public License v3.0 (AGP
 You are free to use, modify, and distribute this work under the terms of the license.  
 Any derivative works must also remain open under the same license.  
 
+**Commercial licensing:** If you require a proprietary/commercial license (e.g. for closed-source use), contact: zjy22@cantab.ac.uk
+
 ### Academic use
 If you use this model in academic work, please cite it as follows:
 
