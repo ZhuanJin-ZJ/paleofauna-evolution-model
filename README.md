@@ -15,3 +15,18 @@ How:
 Use: This is useful not only for theropods, but for any paleontology study where there are physical fossils with known sites. Consider this a “general model” that would allow any paleontologist to plug in their fossil data, unwind time and tectonic drift, and track how these organisms moved in prehistoric time.
 
 Caveats: We want these models to be interoperable - that is to say, we want to be able to swap models so that we can explore how different models will produce different results. This will give a picture of uncertainties involved.
+
+## License and Citation
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**.  
+You are free to use, modify, and distribute this work under the terms of the license.  
+Any derivative works must also remain open under the same license.  
+
+**Commercial licensing:** If you require a proprietary/commercial license (e.g. for closed-source use), contact: zjy22@cantab.ac.uk
+
+### Academic use
+If you use this model in academic work, please cite it as follows:
+
+Zhuan Jin Yee. (2025). Paleofauna-Tectonic Model: A pipeline for visualising and quantifying evolutionary divergence in the fossil record. GitHub. https://github.com/ZhuanJin-ZJ/paleofauna-evolution-model
+
+You may also use the BibTeX entry provided in `CITATION.cff`.
