@@ -1,0 +1,12 @@
+Validation Summary
+Because tectonic reconstructions are prone to subtle errors, I have explicitly validated each transformation step.
+
+Tectonic model checks
+• Plate rotation → Plates rotate back in deep time (visually confirmed). [Day 3 Log, 31/05/2025]
+• Coastline rotation → Coastlines rotate as expected; paleocoordinates differ substantially from present-day coordinates. [Day 3 Log, 31/05/2025]
+• Plate ID assignment → Fossils are correctly assigned plate IDs (verified via printed outputs). [Day 10 Log, 18/07/2025]
+
+Fossil-level checks
+• Identity → At 0 Ma, reconstructed fossils exactly match original locations. [Day 10 Log, 19/07/2025]
+• Rotation → Fossils show consistent displacement vectors when reconstructed at 10 Ma intervals (0–250 Ma). [Day 11 Log, 30/08/2025]
+• Artifacts → Apparent “migration” of present-day fossils in deep time is confirmed to be a visual lifetime artifact (species phasing in/out), not actual movement. [Day 12 Log, 31/08/2025]
