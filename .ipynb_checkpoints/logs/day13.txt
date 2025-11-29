@@ -1,0 +1,135 @@
+🎥 Day 13 Development Log
+
+Context:
+
+A museum may want to license the model for an interactive exhibit: museum-goers could pick a dinosaur species and watch its fossil record “rewind” through deep time. That means one thing: I needed a clean, high-resolution animation running from 0–70 Ma.
+Today was about building that demo pipeline from scratch and untangling every obstacle between “I have the code” and “I have a polished video.”
+
+And what a battle today was... because the final animation looks amazing.
+
+🛠️ Technical Wins
+• Created a dedicated museum-demo branch
+	Finally separated demo-specific development from the main branch. Branching properly let me experiment freely without contaminating core logic.
+• Tuned the reconstruction window for museum playback
+	Reduced the time window to 0–70 Ma
+	Increased temporal resolution from 10 Ma → 5 Ma for smoother movement
+	This gave the animation the fidelity required for exhibition use.
+• Built the entire export pipeline end-to-end
+	The original run_animation() only saved individual PNG frames when export=True.
+	No GIFs, no MP4s — nothing assembled.
+
+	I had two options:
+	- Rewrite the animation system to produce GIFs directly
+ 	- Export PNG frames, then stitch them into a video
+
+	I chose the second because GIF = horrific compression → blurry coastlines.
+	MP4 was the right choice for scientific visualization and museum playback.
+• Added export_movie.py and integrated with animation
+	This module handles:
+	- sanitizing filenames
+	- feeding frames into ffmpeg
+	- producing a clean MP4 with correct resolution
+• Installed and configured ffmpeg (after a hunt)
+	At first ffmpeg “didn’t exist” on the system despite installation.
+	Suspected PATH issues → correct.
+	A full machine reboot fixed the environment variable resolution.
+• Solved the “input images not found” error
+	The cryptic 3752568763 error turned out to be a red herring.
+
+	The real issue:
+	ffmpeg refuses to process frames whose width or height is odd.
+	My frames were 1861×1006 — width was odd.
+
+	Solution: enforce even dimensions in the code.
+• Fixed the one-frame MP4 problem
+	The MP4 only showed frame 0000, nothing else.
+	Two issues:
+
+	- Frame naming was incompatible with ffmpeg.
+	  ffmpeg expects sequential integers (0000, 0001, 0002…).
+	  Mine were spaced by 5 Ma (0000, 0005, 0010…).
+
+	- Double saving was happening.
+	  ui.py saved frame_0000Ma.png
+	  animation.py saved frame_0000.png
+	  ffmpeg read the wrong batch first and never progressed.
+
+	The root cause:
+	Plotting code should never save images.
+	I stripped the rogue saving logic out of ui.py.
+	Once image export was centralized in animation.py, the animation finally stitched correctly.
+• Final result:
+	A complete, smooth, accurate MP4 of Earth unwinding from 0–70 Ma, with fossils moving coherently with their tectonic plates.
+	It looks beautiful.
+
+Meta-Lessons
+• Having worked on this project for awhile now, often errors arise not from the code itself, but from path-ing/directory issues
+
+	Today’s blockers were:
+ 	- PATH issues
+	- ffmpeg installation quirks
+	- ffmpeg dimension rules
+	- filename conventions
+	- duplicate PNG outputs
+
+	Not logic bugs — environment + pipeline bugs.
+
+• When a new module, extension, software is used, it will bring its own conventions that may not be a priori obvious. 
+GPlates was one example. FFmpeg is another with its input convention and dimensional requirements. 
+Aside from reading all the documentation beforehand, this can really only be fixed by trial-and-error: 
+bumping into obstacles and learning as they arise.
+
+• it is absolutely acceptable to iterate upwards. One error is relaced by another? That's progress. 
+It's a step closer to the answer.
+
+• Coding hygiene actually matters when the system grows
+	The stray frame-saving snippet in ui.py seemed harmless early on.
+	Today it caused:
+	- double images
+	- mismatched filenames
+	- broken ffmpeg assembly
+	- an MP4 frozen on frame 0
+
+	One small hygiene mistake → downstream havoc.
+	A clean architecture pays off.
+
+Conceptual Lessons
+• The “dinosaurs in the ocean” issue is deeper than rigid vs deforming plates
+
+	I finally saw fossil motion at fine resolution along the western margin of North America.
+	The longstanding puzzle:
+	Why do some theropod fossils rewind into the ocean?
+	
+	Initially I blamed rigid plate models.
+
+	But at higher granularity, a new insight emerged:
+
+	Some fossils are being reconstructed to crustal fragments that were later subducted beneath the San Andreas system.
+
+	We have zero access to:
+	- their paleotopography
+	- their paleobathymetry
+	- their uplift/subsidence state before subduction.
+
+	In other words:
+	we don’t actually know whether the “oceanic” position was above or below sea level at that time.
+
+	This reframes the whole interpretation issue and is absolutely worth discussing with Prof. Erin Saupe.
+
+Up Next
+1. Keep modern fossil locations fixed
+	Museum viewers must see:
+	- modern-day fossil positions
+	- fossils rewinding backwards in time without “phasing out” based on species lifespan.
+
+2. Switch PBDB filtering from clade-level → species-level
+	Move from “Theropoda” to specific taxa: Tyrannosaurus rex, Triceratops horridus, etc.
+
+3. (Optional) Dynamic legend generation
+	Based on which species are included in reconstruction.
+
+4. (Optional) Experiment with deforming plate models
+	Direct comparison: Müller 2022 rigid model vs deforming models with partitioned crustal motion
+	Useful for interpreting movement along margins like western North America.
+
+But for the purposes of a museum demo... I've already produced the output I need :)
