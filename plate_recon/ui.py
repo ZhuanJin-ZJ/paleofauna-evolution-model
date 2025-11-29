@@ -121,7 +121,7 @@ def create_ui():
 
     out = Output()
     slider = IntSlider(
-        value=110, min=0, max=1000, step=10,
+        value=70, min=0, max=1000, step=5,
         description='Time (Ma)', continuous_update=False
     )
 
@@ -148,7 +148,7 @@ def create_ui():
         with out:
             out.clear_output(wait=True)
             print("🎬 Running animation...")
-            run_animation(start=0, end=250, step=10, export=False, outdir="exports")
+            run_animation(start=0, end=70, step=5, export=True, outdir="exports", make_video=True)
             print("✅ Animation complete. Frames saved in 'exports/'")
 
     button.on_click(on_button_click)

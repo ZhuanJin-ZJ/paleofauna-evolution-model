@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from ui import plot_all
 import utils
+from export_movie import make_mp4
 
-def run_animation(start=0, end=250, step=10, export=False, outdir="exports"):
+def run_animation(start=0, end=70, step=5, export=False, outdir="exports", make_video=False):
     utils.VERBOSE = False    # Silence logs globally
     ### Animate tectonic & fossil reconstructions.
     #   Args:
@@ -30,3 +31,7 @@ def run_animation(start=0, end=250, step=10, export=False, outdir="exports"):
             plt.show()
 
         plt.close(fig)  # Close to free memory
+
+    # Create MP4 if requested
+    if export and make_video:
+        make_mp4(input_dir=outdir, output_file=f"{outdir}/animation.mp4", fps=6)
