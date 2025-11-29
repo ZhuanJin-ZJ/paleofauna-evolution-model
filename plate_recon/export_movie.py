@@ -13,13 +13,14 @@ def make_mp4(input_dir="exports", output_file="animation.mp4", fps=6):
     except FileNotFoundError:
         raise RuntimeError("ffmpeg not found. Install from https://ffmpeg.org/download.html")
 
-    input_pattern = os.path.join(input_dir, "frame_%04dMa.png")
+    input_pattern = os.path.join(input_dir, "frame_%04d.png")
 
     cmd = [
         "ffmpeg",
         "-y",                     # overwrite output file
         "-framerate", str(fps),
         "-i", input_pattern,
+        "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
         "-c:v", "libx264",
         "-pix_fmt", "yuv420p",
         output_file

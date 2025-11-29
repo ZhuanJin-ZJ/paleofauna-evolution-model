@@ -107,13 +107,6 @@ def plot_all(ax, time, export=False, outdir="exports"):
     }
     draw_dynamic_legend(ax, active_layers)
 
-    if export:
-        import os
-        os.makedirs(outdir, exist_ok=True)
-        fname = os.path.join(outdir, f"frame_{time:04d}Ma.png")
-        plt.savefig(fname, dpi=200, bbox_inches="tight")
-        print(f"💾 Saved: {fname}")
-
 
 def create_ui():
     from ipywidgets import Button

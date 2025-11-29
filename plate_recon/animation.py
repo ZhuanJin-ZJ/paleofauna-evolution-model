@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from ui import plot_all
 import utils
+import os
 from export_movie import make_mp4
 
 def run_animation(start=0, end=70, step=5, export=False, outdir="exports", make_video=False):
@@ -18,6 +19,7 @@ def run_animation(start=0, end=70, step=5, export=False, outdir="exports", make_
         # outdir (str): directory to save images.
 
     times = range(start, end + 1, step)
+    frame_index = 0
 
     for t in times:
         fig = plt.figure(figsize=(12, 6))
@@ -26,8 +28,11 @@ def run_animation(start=0, end=70, step=5, export=False, outdir="exports", make_
         ax.set_title(f"Reconstructed Plates and Fossils at {t} Ma")
 
         plot_all(ax, t, export=export, outdir=outdir)
-
-        if not export:
+        if export:
+            save_path = os.path.join(outdir, f"frame_{frame_index:04d}.png")
+            fig.savefig(save_path, dpi=150)
+            frame_index += 1
+        else:
             plt.show()
 
         plt.close(fig)  # Close to free memory
