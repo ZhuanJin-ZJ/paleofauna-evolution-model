@@ -87,7 +87,7 @@ def plot_all(ax, time, export=False, outdir="exports"):
     plot_reconstructed_features(ax, reconstructed_boundaries, {'polygon': 'red', 'polyline': 'blue'})
     plot_reconstructed_features(ax, reconstructed_coastlines, {'polygon': 'saddlebrown', 'polyline': 'saddlebrown'})
 
-    FORCE_REFRESH = True  # or make it a UI toggle
+    FORCE_REFRESH = False  # or make it a UI toggle
     fossil_df = fetch_and_cache_fossils(force_refresh=FORCE_REFRESH)
     log(f"🦴 Fossil data rows: {len(fossil_df)}")
 
@@ -114,7 +114,7 @@ def create_ui():
 
     out = Output()
     slider = IntSlider(
-        value=70, min=0, max=1000, step=5,
+        value=40, min=0, max=1000, step=5,
         description='Time (Ma)', continuous_update=False
     )
 
@@ -141,7 +141,7 @@ def create_ui():
         with out:
             out.clear_output(wait=True)
             print("🎬 Running animation...")
-            run_animation(start=0, end=70, step=5, export=True, outdir="exports", make_video=True)
+            run_animation(start=0, end=70, step=5, export=False, outdir="exports", make_video=False)
             print("✅ Animation complete. Frames saved in 'exports/'")
 
     button.on_click(on_button_click)

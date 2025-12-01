@@ -14,7 +14,7 @@ TOPOLOGY_PATH = os.path.join(BASE_PATH, 'shapes_static_polygons_Merdith_et_al.gp
 topology_features = pygplates.FeatureCollection(TOPOLOGY_PATH)
 
 # === FETCH ===
-def fetch_fossils(query_name='Theropoda', limit=10000):
+def fetch_fossils(query_name='Tyrannosaurus rex', limit=10000):
     url = "https://paleobiodb.org/data1.2/occs/list.csv"
     params = {
         'base_name': query_name,
@@ -27,11 +27,14 @@ def fetch_fossils(query_name='Theropoda', limit=10000):
 
     df = df.dropna(subset=['lng', 'lat', 'max_ma', 'min_ma'])
     df = df.rename(columns={'max_ma': 'early_age', 'min_ma': 'late_age'})
+    
+    # Strict filtering (optional)
+    df = df[df['accepted_name'] == 'Tyrannosaurus rex']
     return df
 
 _cached_df = None  # Cache placeholder
 
-def fetch_and_cache_fossils(csv_path='data/theropods.csv', query_name='Theropoda', force_refresh=False):
+def fetch_and_cache_fossils(csv_path='data/theropods.csv', query_name='Tyrannosaurus rex', force_refresh=False):
     global _cached_df
 
     if not force_refresh and _cached_df is not None:
@@ -75,14 +78,14 @@ def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time)
     
     # A fossil is considered "alive" if:
     #    late_age <= reconstruction_time <= early_age
-    # where:
+    #    where:
     #    - early_age = oldest known occurrence of the species (max_ma)
     #    - late_age  = youngest known occurrence (min_ma)
 
     # Step 1: Filter fossils
     filtered_df = fossil_df[
-        (fossil_df['early_age'] >= reconstruction_time) &
-        (fossil_df['late_age'] <= reconstruction_time)
+        (fossil_df['early_age'] >= reconstruction_time) #&
+#        (fossil_df['late_age'] <= reconstruction_time)
     ]
 
     log(f"🦴 Filtered fossil count at {reconstruction_time} Ma: {len(filtered_df)}")

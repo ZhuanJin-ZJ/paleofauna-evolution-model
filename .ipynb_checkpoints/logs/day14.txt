@@ -1,0 +1,27 @@
+🦖 Day 14 Development Log
+
+🛠️ Technical Wins
+ - I slowed the frame rate, 
+ - Changed Theropoda to Tyrannosaurus rex
+ - Changed fossil filtering so that the original fossil is fixed across time while the reconstructed fossils and tectonic plates
+   unwind in deep time. 
+
+💡 Insights: 
+ - PBDB API can accommodate changes in taxonomic resolution as they have their own taxonomic tree. 
+   Therefore I did not need to touch my order/family/genus columns.
+ - Present-day fossils were previously being filtered out intentionally to show only species that were alive during their lifetime interval
+   For the purposes of the museum demo however, I needed to keep the fossils on display even if they went extinct by that point.
+   Both reconstructed and present-day fossils were filtered out based on this "extinct filter" applied here:
+       # Step 1: Filter fossils
+    filtered_df = fossil_df[
+        (fossil_df['early_age'] >= reconstruction_time) #&
+#        (fossil_df['late_age'] <= reconstruction_time)
+    ]
+   in fossils.py.
+   By removing the late-age filter, I was effectively ignoring extinction and the fossils were allowed to persist from the time they first walked the Earth as dinosaurs.
+
+🧭 Next steps: 
+ - Check if fossils are mislabeled between present vs reconstructed fossils as present-day fossils are splitting weirdly around 35-40 Ma
+ - Replace fossil blips with T. rex .png
+ - Land coloured green and ocean coloured blue
+ - (optional) Dynamic legend with respect to dinosaur chosen

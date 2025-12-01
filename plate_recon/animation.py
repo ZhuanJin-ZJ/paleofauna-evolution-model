@@ -39,4 +39,4 @@ def run_animation(start=0, end=70, step=5, export=False, outdir="exports", make_
 
     # Create MP4 if requested
     if export and make_video:
-        make_mp4(input_dir=outdir, output_file=f"{outdir}/animation.mp4", fps=6)
+        make_mp4(input_dir=outdir, output_file=f"{outdir}/animation.mp4", fps=1)
