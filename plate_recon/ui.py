@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import os
 import cartopy.crs as ccrs
 from config import rotation_model
 from ipywidgets import IntSlider, VBox, Output
@@ -16,6 +18,8 @@ from utils import log
 fetch_and_cache_fossils = fossils.fetch_and_cache_fossils
 reconstruct_fossil_locations = fossils.reconstruct_fossil_locations
 
+# Load the T. rex image once
+T_REX_ICON = mpimg.imread(os.path.join("assets", "t_rex.png"))
 
 def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
     for feature in reconstructed_geometries:
@@ -34,17 +38,24 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
                 )
 
 
-def plot_fossils(ax, fossil_data, color='darkgreen', original=False):
+def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
+
+    ### Plot fossils as T. rex PNG silhouettes instead of dots.
+    #   size_deg controls the size of each icon in degrees.
     for fossil in fossil_data:
         lat = fossil['original_lat'] if original else fossil['recon_lat']
         lon = fossil['original_lon'] if original else fossil['recon_lon']
-        ax.plot(
-            lon, lat, 'o',
-            transform=ccrs.Geodetic(), 
-            color='gray' if original else color, 
-            markersize=3, alpha=0.6 if original else 1.0
-        )
 
+        # Half-size for convenience
+        d = size_deg / 2.0
+
+        ax.imshow(
+            TREX_ICON,
+            extent=[lon - d, lon + d, lat - d, lat + d],
+            transform=ccrs.Geodetic(),
+            alpha=0.8 if original else 1.0,
+            zorder=10  # ensures fossils display above coastlines
+        )
 
 def plot_fossil_vectors(ax, fossil_data, color='red'):
     for fossil in fossil_data:
@@ -94,8 +105,8 @@ def plot_all(ax, time, export=False, outdir="exports"):
     fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time)
     log(f"✅ Fossils reconstructed: {len(fossil_data)}")
 
-    plot_fossils(ax, fossil_data, color='darkgreen')             # Reconstructed
-    plot_fossils(ax, fossil_data, color='gray', original=True)   # Present-day
+    plot_fossils(ax, fossil_data, size_deg=1.5, original=False)  # Reconstructed
+    plot_fossils(ax, fossil_data, size_deg=1.0, original=True)   # Present-day
     plot_fossil_vectors(ax, fossil_data, color='red')            # Arrows between them
 
     active_layers = {
