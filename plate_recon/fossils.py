@@ -14,7 +14,7 @@ TOPOLOGY_PATH = os.path.join(BASE_PATH, 'shapes_static_polygons_Merdith_et_al.gp
 topology_features = pygplates.FeatureCollection(TOPOLOGY_PATH)
 
 # === FETCH ===
-def fetch_fossils(query_name='Tyrannosaurus rex', limit=10000):
+def fetch_fossils(query_name='Tyrannosaurus rex', limit=4):
     url = "https://paleobiodb.org/data1.2/occs/list.csv"
     params = {
         'base_name': query_name,

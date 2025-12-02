@@ -4,6 +4,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import os
+import scipy.spatial
+try:
+    import pykdtree
+except ImportError:
+    pass
 import cartopy.crs as ccrs
 from config import rotation_model
 from ipywidgets import IntSlider, VBox, Output
@@ -38,25 +43,45 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
                     ),
                     transform=ccrs.Geodetic(), linewidth=0.5
                 )
-
+                
 def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
+    """
+    If original=True  → draw grey dots
+    If original=False → draw T. rex image icons
+    """
+    pc = ccrs.PlateCarree()
+    proj = ax.projection # Robinson projection used in the figure
 
-    ### Plot fossils as T. rex PNG silhouettes instead of dots.
-    #   size_deg controls the size of each icon in degrees.
     for fossil in fossil_data:
         lat = fossil['original_lat'] if original else fossil['recon_lat']
         lon = fossil['original_lon'] if original else fossil['recon_lon']
 
-        # Half-size for convenience
-        d = size_deg / 2.0
+        if original:
+            # --- Present-day fossils: grey dots ---
+            ax.plot(
+                lon, lat, 'o',
+                transform=ccrs.Geodetic(),
+                color='gray',
+                markersize=3,
+                alpha=0.6,
+                zorder=5
+            )
+        else:
+            # --- Reconstructed fossils: image icons ---
+            # Transform (lon, lat) into Robinson projected coordinates
+            x, y = proj.transform_point(lon, lat, pc)
 
-        ax.imshow(
-            T_REX_ICON,
-            extent=[lon - d, lon + d, lat - d, lat + d],
-#            transform=ccrs.Geodetic(),
-            alpha=0.8 if original else 1.0,
-            zorder=10  # ensures fossils display above coastlines
-        )
+            # Size in projected units (rough guess: degrees → projection scale)
+            d = size_deg * 10000
+
+            ax.imshow(
+                T_REX_ICON,
+                extent=[x - d, x + d, y - d, y + d],
+                transform=proj,   # NOT PlateCarree anymore
+                origin="upper",
+                alpha=1.0,
+                zorder=10
+            )
 
 def plot_fossil_vectors(ax, fossil_data, color='red'):
     for fossil in fossil_data:
@@ -88,14 +113,24 @@ def draw_dynamic_legend(ax, active_layers):
 
     ax.legend(handles=legend_elements, loc='lower right')
 
-
 def plot_all(ax, time, export=False, outdir="exports"):
     print(f"⏳ Reconstructing for time: {time} Ma")
-    import numpy as np
+    ### SANITY CHECK FOR WHY IMAGES WERE NOT SHOWING
+#    import numpy as np
 
-    print("Shape:", T_REX_ICON.shape)
-    print("Min/Max:", np.min(T_REX_ICON), np.max(T_REX_ICON))
-    print("Unique sample:", np.unique(T_REX_ICON.reshape(-1, T_REX_ICON.shape[-1])[:20], axis=0))
+#    print("Shape:", T_REX_ICON.shape)
+#    print("Min/Max:", np.min(T_REX_ICON), np.max(T_REX_ICON))
+#    print("Unique sample:", np.unique(T_REX_ICON.reshape(-1, T_REX_ICON.shape[-1])[:20], axis=0))
+
+#    for lon, lat in [(0,0), (30,30), (-60,15)]:
+#        x, y = ax.projection.transform_point(lon, lat, ccrs.PlateCarree())
+#        d = 5 * 100000
+#        ax.imshow(
+#            T_REX_ICON,
+#            extent=[x-d, x+d, y-d, y+d],
+#            transform=ax.projection,
+#            zorder=50
+#        )
     
     features = get_plate_boundaries(time)
     reconstructed_boundaries = reconstruct_features(features, time)
@@ -111,8 +146,8 @@ def plot_all(ax, time, export=False, outdir="exports"):
     fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time)
     log(f"✅ Fossils reconstructed: {len(fossil_data)}")
 
-    plot_fossils(ax, fossil_data, size_deg=15, original=False)  # Reconstructed
-    plot_fossils(ax, fossil_data, size_deg=10, original=True)   # Present-day
+    plot_fossils(ax, fossil_data, size_deg=150, original=False)  # Reconstructed
+    plot_fossils(ax, fossil_data, size_deg=100, original=True)   # Present-day
     plot_fossil_vectors(ax, fossil_data, color='red')            # Arrows between them
 
     active_layers = {
@@ -123,7 +158,6 @@ def plot_all(ax, time, export=False, outdir="exports"):
     'plate_boundaries': True,
     }
     draw_dynamic_legend(ax, active_layers)
-
 
 def create_ui():
     from ipywidgets import Button
