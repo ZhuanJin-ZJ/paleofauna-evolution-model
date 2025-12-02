@@ -1,0 +1,137 @@
+ 📐 **Day 15 Development Log**
+
+💣 Main challenge: Loading T.rex as an icon on a map, indicating reconstructed fossils where they lived in deep time.
+
+🗺️ Approach: Download T. rex as a .png file, then get it to replace the dark-green dots representing reconstructed T.rex fossils in deep time.
+             Sounds simple, right?
+
+🤼‍ Challenges(-) & Technical Wins(+):
+ - T.rex silhouettes exist all around the net. But many of them required licences.  
+   + Asked AI to generate a T.rex silhouette, then sent it to myself.
+ - The T.rex art came in .jpeg form
+   + Converted it into a .png format with an online converter, asking to make it _transparent_. 
+     I wanted the background transparent, as otherwise the background would clip out patches of the world map in the output.
+     This would later turn out to be a mistake.
+ - After t_rex.png was moved into 'assets\\t_rex.png', was told that no such file existed in the directory. Suspected path-ing issue.
+   + Changed directory in code, using:
+	BASE_DIR   = os.path.dirname(os.path.dirname(__file__)) # Go up one level in the directory
+	ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+	T_REX_ICON = mpimg.imread(os.path.join(ASSETS_DIR, "t_rex.png"))
+ - This succeeded, but another error arose: Expected a projection subclass. Cannot handle <Geodetic> in imshow()
+   + Explained: imshow() expects data already in the map's coordinate system. 
+     By using
+	ax.imshow(
+    	 T_REX_ICON,
+   	 extent=[lon - d, lon + d, lat - d, lat + d],
+   	 transform=ccrs.Geodetic(),
+    	 alpha=0.8 if original else 1.0,
+    	 zorder=10
+	)
+     ...I was changing the coordinate system. My GeoAxes use PlateCarree and I transformed them to Geodetic. This did not work. 
+     So I removed the line "transform=ccrs.Geodetic()".
+     This would later turn out to be a mistake.
+ - My map loaded without code errors. BUT the fossils were MISSING. What happened?
+   Some candidate explanations:
+   * T.rex image too big
+   * T.rex image too small
+   * T.rex image (actual .png file) transparent
+   * Something wrong with the projection
+   * T.rex image buried under other layers (unlikely since this was not an issue before with the dot markers for fossils)
+   These possibilities only seemed obvious in retrospect. At the time, it was unclear what the issue was since fossils were not displaying.
+
+   Therefore went by process of elimination:
+   + Scaled up T. rex size by 1 order of magnitude, then 2. Still not visible. Unlikely that image was too small.
+   + Inserted argument "origin=upper" in ax.imshow(). No change.
+   + Inserted quick brute force test:
+	import numpy as np
+
+	print("Shape:", T_REX_ICON.shape)
+	print("Min/Max:", np.min(T_REX_ICON), np.max(T_REX_ICON))
+	print("Unique sample:", np.unique(T_REX_ICON.reshape(-1, T_REX_ICON.shape[-1])[:20], axis=0))
+     which gave the output:
+        Shape: (1024, 1024, 4)
+	Min/Max: 0.0 1.0
+	Unique sample: [[0. 0. 0. 0.]]
+     T.rex icons still did not show.
+   => perhaps there was something wrong with the .png file. Output indicated the .png was 100% transparent.
+   + Returned to the original image and used another site to remove the background, and convert it into a .png. This worked!
+ - The "brute force test" now worked, and gave the output:
+   	Shape: (1024, 1024, 3)
+	Min/Max: 0.0 1.0
+	Unique sample: [[0.7058824  0.67058825 0.6117647 ]
+ 	[0.70980394 0.6745098  0.6156863 ]
+ 	[0.7137255  0.6784314  0.61960787]
+ 	[0.7137255  0.6901961  0.6431373 ]
+ 	[0.7176471  0.69411767 0.64705884]
+ 	[0.72156864 0.6862745  0.627451  ]
+ 	[0.7254902  0.6901961  0.6313726 ]
+ 	[0.7294118  0.69411767 0.63529414]
+ 	[0.7372549  0.7019608  0.6431373 ]
+ 	[0.7411765  0.7058824  0.64705884]
+ 	[0.7490196  0.7137255  0.654902  ]
+ 	[0.7529412  0.7176471  0.65882355]]  
+   But the T.rex images were still not showing!
+   => This is where the projection error came back to bite me.
+   + Added the argument transform=ccrs.Robinson to ax.imshow, the same as my map display projection.
+ - The argument transform=ccrs.Robinson to ax.imshow did NOT work...
+   ...as the extent=[lon-d, lon+d, lat-d, lat+d], x-axis = longitude and y-axis = latitude, is PlateCarree space, not Robinson space
+   ...meaning: the coordinate system that the data lives in (PlateCarree/Geodetic) is NOT THE SAME as the visual projection onto the map!
+   => the transform should always be set to the coordinate system of my data! (lon, lat) values are meaningless in Robinson space!
+   + changed the argument to transform=ccrs.PlateCarree 
+ - Error: Using image transforms requires pykdtree or scipy
+   + Dowloaded scipy and pykdtree.
+ - Error: No module named scipy. But I already downloaded it. Furthermore, ONE T.rex icon showed, but the rest were missing.
+   => Realised I was running in multiple Python environments. The first run used environment A (SciPy installed), while the second run used environment B (no SciPy)
+   + Made sure to download scipy and pykdtree to EXACTLY the Python environment my notebook used.
+     I could identify this Python environment using:
+	import sys
+	print(sys.executable)
+     in Jupyter, to yield the full path.
+     Then I opened a cmd window and pasted: "<FULL_PATH_FROM_sys.executable>" -m pip install scipy
+
+... 🔥🔥🔥🔥🔥 AND MY CODE WORKKKKKEEEDDDDD 🔥🔥🔥🔥🔥
+
+🦖🦖🦖 T REXES WERE SHOWING 🦖🦖🦖
+
+Now all that remained was visual cleanup:
+ - Too difficult to distinguish between original and reconstructed fossils, since they were both Big T.Rexes.
+   + Changed present-day fossils back to grey dots using conditional statements in plot_fossils()
+ - Too many T.Rexes... 73 of them...
+   + Cut number of T.Rexes down to 4. This also sped up loading by a lot.
+
+💡 Insights: 
+ - When an error arises, there can be multiple causes. This can come from any stage of the pipeline, from the environment, 
+   from the data source (in this case, an image), from the projection, from coordinate transformations, invalid arguments/functions...
+   The key here is to keep a cool head. 
+   Then test to eliminate possible causes.
+   Once you eliminate the impossible, what remains must be the Truth.
+ - Coordinate transformations are proving to be tricky for this pipeline. For that matter, data types (e.g. geometry features)
+   are constantly be transformed in various ways. 
+   It may be helpful to track the state and type of throughput in this pipeline at each stage, AND
+   what can or cannot be done to the data at each stage. What functions apply? what functions do not apply?
+ - Visual projection system =/= data coordinate system 
+ - Having cut down the number of T. Rexes to just 4, I noticed something strange. 
+   From 65 Ma → 70 Ma, the "present-day fossils" of the T. Rexes seem to diverge on different landmasses, whereas their reconstruction - 
+   where they were in deep time - stays static near the mid-ocean ridge. 
+   We should expect the opposite: present-day fossils to stay in one place as we travel back across time, and reconstructed fossils
+   to drift apart.
+   If we were playing the animation forward in time, it is reasonable to expect different landmasses, each containing T.rex,
+   to collide, so that all the T.rex fossils can be found in the same present-day location, where all three prehistoric landscapes
+   converged and smushed together to create the present-day landscape.
+   It seems far less likely that the reconstructed fossils simply remained in the SAME LOCATION across deep time, at the bottom of the ocean,
+   while their present-day fossils simply drifted apart. The logic doesn't hold up.
+   ...which means the dinosaurs in the ocean problem that I've been fretting about...
+   may well be a logic error on my part. Perhaps an argument wrongly positioned in my code. 
+   To investigate.
+   (This was not easy to spot earlier, as my original model before making the museum demo had a lot of moving parts.
+    Species phasing in and out of existence depending on when they were alive...
+    Over 100-1000 fossils on display at any one time...)
+
+   Meta-lesson: patterns become dificult to spot with the full dataset, full complexity.
+   Sometimes a simpler, reduced case (just Tyrannosaurus, and just 4 of them for this demo) can shine a light on what the model
+   is or is not doing correctly.
+
+🧭 Next steps: 
+ - Land to be coloured green, ocean to be coloured blue.
+ - Dynamic legend with respect to dinosaur chosen (more coordinate transform headaches)
+ - Investigate logic error on which fossils (present vs reconstructed) are projected where.
