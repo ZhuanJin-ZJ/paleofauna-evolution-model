@@ -19,7 +19,9 @@ fetch_and_cache_fossils = fossils.fetch_and_cache_fossils
 reconstruct_fossil_locations = fossils.reconstruct_fossil_locations
 
 # Load the T. rex image once
-T_REX_ICON = mpimg.imread(os.path.join("assets", "t_rex.png"))
+BASE_DIR   = os.path.dirname(os.path.dirname(__file__)) # Go up one level in the directory
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+T_REX_ICON = mpimg.imread(os.path.join(ASSETS_DIR, "t_rex.png"))
 
 def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
     for feature in reconstructed_geometries:
@@ -37,7 +39,6 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
                     transform=ccrs.Geodetic(), linewidth=0.5
                 )
 
-
 def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
 
     ### Plot fossils as T. rex PNG silhouettes instead of dots.
@@ -50,9 +51,9 @@ def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
         d = size_deg / 2.0
 
         ax.imshow(
-            TREX_ICON,
+            T_REX_ICON,
             extent=[lon - d, lon + d, lat - d, lat + d],
-            transform=ccrs.Geodetic(),
+#            transform=ccrs.Geodetic(),
             alpha=0.8 if original else 1.0,
             zorder=10  # ensures fossils display above coastlines
         )
@@ -90,7 +91,12 @@ def draw_dynamic_legend(ax, active_layers):
 
 def plot_all(ax, time, export=False, outdir="exports"):
     print(f"⏳ Reconstructing for time: {time} Ma")
+    import numpy as np
 
+    print("Shape:", T_REX_ICON.shape)
+    print("Min/Max:", np.min(T_REX_ICON), np.max(T_REX_ICON))
+    print("Unique sample:", np.unique(T_REX_ICON.reshape(-1, T_REX_ICON.shape[-1])[:20], axis=0))
+    
     features = get_plate_boundaries(time)
     reconstructed_boundaries = reconstruct_features(features, time)
     reconstructed_coastlines = reconstruct_coastlines(time)
@@ -105,8 +111,8 @@ def plot_all(ax, time, export=False, outdir="exports"):
     fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time)
     log(f"✅ Fossils reconstructed: {len(fossil_data)}")
 
-    plot_fossils(ax, fossil_data, size_deg=1.5, original=False)  # Reconstructed
-    plot_fossils(ax, fossil_data, size_deg=1.0, original=True)   # Present-day
+    plot_fossils(ax, fossil_data, size_deg=15, original=False)  # Reconstructed
+    plot_fossils(ax, fossil_data, size_deg=10, original=True)   # Present-day
     plot_fossil_vectors(ax, fossil_data, color='red')            # Arrows between them
 
     active_layers = {
