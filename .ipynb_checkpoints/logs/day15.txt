@@ -79,7 +79,7 @@
    => the transform should always be set to the coordinate system of my data! (lon, lat) values are meaningless in Robinson space!
    + changed the argument to transform=ccrs.PlateCarree 
  - Error: Using image transforms requires pykdtree or scipy
-   + Dowloaded scipy and pykdtree.
+   + Downloaded scipy and pykdtree.
  - Error: No module named scipy. But I already downloaded it. Furthermore, ONE T.rex icon showed, but the rest were missing.
    => Realised I was running in multiple Python environments. The first run used environment A (SciPy installed), while the second run used environment B (no SciPy)
    + Made sure to download scipy and pykdtree to EXACTLY the Python environment my notebook used.
@@ -106,9 +106,9 @@ Now all that remained was visual cleanup:
    Then test to eliminate possible causes.
    Once you eliminate the impossible, what remains must be the Truth.
  - Coordinate transformations are proving to be tricky for this pipeline. For that matter, data types (e.g. geometry features)
-   are constantly be transformed in various ways. 
+   are constantly being transformed in various ways. 
    It may be helpful to track the state and type of throughput in this pipeline at each stage, AND
-   what can or cannot be done to the data at each stage. What functions apply? what functions do not apply?
+   what can or cannot be done to the data at each stage. What functions apply? What functions do not apply?
  - Visual projection system =/= data coordinate system 
  - Having cut down the number of T. Rexes to just 4, I noticed something strange. 
    From 65 Ma → 70 Ma, the "present-day fossils" of the T. Rexes seem to diverge on different landmasses, whereas their reconstruction - 
