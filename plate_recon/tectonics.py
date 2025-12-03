@@ -8,6 +8,9 @@ from config import BASE_PATH, rotation_model  # ⬅️ import shared config
 COASTLINES_PATH = os.path.join(BASE_PATH, 'COB_polygons_and_coastlines_combined_1000_0_Merdith_etal.gpml')
 coastline_features = pygplates.FeatureCollection(COASTLINES_PATH)
 
+LANDMASK_PATH = os.path.join(BASE_PATH, 'shapes_coastlines_Merdith_et_al.gpmlz')
+landmask_features = pygplates.FeatureCollection(LANDMASK_PATH)
+
 def get_plate_boundaries(reconstruction_time):
     if reconstruction_time > 410:
         paths = [
@@ -43,6 +46,21 @@ def get_plate_boundaries(reconstruction_time):
     
     return features
 
+def load_raw_land_polygons():
+    polys = []
+    for feat in landmask_features:
+        geom = feat.get_geometry()
+        if geom is None:
+            continue
+
+        gname = geom.__class__.__name__
+
+        # Match PolygonOnSphere, MultiPolygonOnSphere, etc.
+        if "Polygon" in gname:
+            polys.append(feat)
+
+    return polys
+
 def reconstruct_features(features, time):
     reconstructed = []
     pygplates.reconstruct(features, rotation_model, reconstructed, time)
@@ -51,4 +69,14 @@ def reconstruct_features(features, time):
 def reconstruct_coastlines(time):
     reconstructed = []
     pygplates.reconstruct(coastline_features, rotation_model, reconstructed, time)
+    return reconstructed
+
+def reconstruct_polygons(time):
+    """
+    Reconstruct only polygon features (landmasses) to a given time.
+    Returns a list of reconstructed feature geometries.
+    """
+    raw_polygons = load_raw_land_polygons()
+    reconstructed = []
+    pygplates.reconstruct(raw_polygons, rotation_model, reconstructed, time)
     return reconstructed

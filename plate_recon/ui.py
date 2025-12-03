@@ -54,86 +54,88 @@ def render_oceanmask(ax, color=(0.0, 0.2, 0.55)):
         zorder=-50
     )
 
-def extract_polygon_loops(reconstructed_features):
+def debug_plot_polygons(ax, time):
     """
-    Extract polygon or polyline loops from reconstructed coastlines.
-    Compatible with all pygplates versions.
-    Returns a list of loops, each loop = list of (lon, lat).
+    Quick diagnostic to verify polygon loading and reconstruction.
+    Draws polygons in red so you can see if they exist and look right.
     """
-    polygons = []
+    from tectonics import reconstruct_polygons
 
-    for feature in reconstructed_features:
+    reconstructed_polygons = reconstruct_polygons(time)
+
+    count = 0
+    for feature in reconstructed_polygons:
         geom = feature.get_reconstructed_geometry()
-        if geom is None:
-            continue
-
-        # Try direct lat/lon extraction (works for most geom types)
-        if hasattr(geom, 'to_lat_lon_list'):
+        if geom and hasattr(geom, 'to_lat_lon_list'):
             coords = geom.to_lat_lon_list()
-            if len(coords) >= 3:
-                polygons.append(coords)
+            if coords:
+                lats, lons = zip(*coords)
+                ax.plot(
+                    lons, lats, '-', 
+                    color='red', 
+                    linewidth=0.8,
+                    transform=ccrs.Geodetic(),
+                    zorder=20
+                )
+                count += 1
+
+    print(f"[DEBUG] Reconstructed polygon count: {count}")
+
+def render_landmask(ax, time, facecolor='green', edgecolor='none',
+                    alpha=1.0, zorder=-30):
+
+    from tectonics import reconstruct_polygons
+    from matplotlib.patches import Polygon as MplPolygon
+    import cartopy.crs as ccrs
+
+    pc = ccrs.PlateCarree()
+    reconstructed = reconstruct_polygons(time)
+
+    count = 0
+    skipped = 0
+
+    for feature in reconstructed:
+        geom = feature.get_reconstructed_geometry()
+        if not geom or not hasattr(geom, "to_lat_lon_list"):
+            skipped += 1
             continue
 
-        # Try accessing points directly (older PolygonOnSphere)
-        if hasattr(geom, 'get_points'):
-            pts = geom.get_points()
-            coords = [(p.get_longitude(), p.get_latitude()) for p in pts]
-            if len(coords) >= 3:
-                polygons.append(coords)
+        # ---- ORIENTATION FILTER (the correct way) ----
+        try:
+            area = geom.get_area()  # signed spherical area
+        except:
+            skipped += 1
             continue
 
-        # Try general point sequence attribute (fallback)
-        if hasattr(geom, 'points'):
-            pts = geom.points
-            coords = [(p.get_longitude(), p.get_latitude()) for p in pts]
-            if len(coords) >= 3:
-                polygons.append(coords)
+        if area <= 0:   # CW orientation → ocean shell
+            skipped += 1
+            continue
+        # -------------------------------------------------
+
+        coords = geom.to_lat_lon_list()
+        if not coords:
+            skipped += 1
             continue
 
-        # If truly nothing works, skip
-        # (very rare — only for non-spatial metadata)
-        # print("⚠️ Skipped unknown geometry:", geom.__class__.__name__)
-        pass
+        lats, lons = zip(*coords)
+        xy = list(zip(lons, lats))
 
-    return polygons
-
-def render_landmask(ax, land_polygons, color='green', alpha=0.6, zorder=1):
-    """
-    Render filled landmasses using precomputed coastline polygons.
-    
-    land_polygons: list of polygons, where each polygon is a list of (lon, lat) pairs.
-                   Example: [ [ (lon1,lat1), (lon2,lat2), ... ], [ ... ], ... ]
-
-    ax: the Cartopy axes (already initialized with projection=ccrs.Robinson() or similar)
-    """
-
-    proj = ax.projection          # Same trick used in the T. rex icon code
-    pc = ccrs.PlateCarree()       # Source coordinate system
-
-    for poly in land_polygons:
-        if len(poly) < 3:
-            continue  # not enough points to fill
-
-        # Extract lon/lat arrays
-        lons = np.array([p[0] for p in poly])
-        lats = np.array([p[1] for p in poly])
-
-        # Project the vertices from PlateCarree → ax projection (Robinson)
-        projected = proj.transform_points(pc, lons, lats)
-
-        # projected is Nx3 array: columns = [x, y, z]
-        xs = projected[:, 0]
-        ys = projected[:, 1]
-
-        # Fill polygon in projected coordinate space
-        ax.fill(
-            xs, ys,
-            color=color,
+        patch = MplPolygon(
+            xy,
+            closed=True,
+            facecolor=facecolor,
+            edgecolor=edgecolor,
+            linewidth=0,
             alpha=alpha,
-            transform=proj,
-            zorder=zorder
+            zorder=zorder,
+            transform=pc
         )
 
+        ax.add_patch(patch)
+        count += 1
+
+    print(f"[LANDMASK] Painted {count} land polygons. Skipped {skipped}.")
+    
 def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
     for feature in reconstructed_geometries:
         geom = feature.get_reconstructed_geometry()
@@ -242,10 +244,8 @@ def plot_all(ax, time, export=False, outdir="exports"):
     reconstructed_boundaries = reconstruct_features(features, time)
     reconstructed_coastlines = reconstruct_coastlines(time)
 
-    land_polygons = extract_polygon_loops(reconstructed_coastlines) # Extract polygon loops from coastlines
-
-    render_oceanmask(ax) # Paint oceans first
-    render_landmask(ax, land_polygons, color='green') # Paint landmasses
+    render_oceanmask(ax)                                         # Paint oceans first
+    render_landmask(ax, time, facecolor='lightgreen')            # Paint landmasses
 
     plot_reconstructed_features(ax, reconstructed_boundaries, {'polygon': 'red', 'polyline': 'blue'})
     plot_reconstructed_features(ax, reconstructed_coastlines, {'polygon': 'saddlebrown', 'polyline': 'saddlebrown'})
