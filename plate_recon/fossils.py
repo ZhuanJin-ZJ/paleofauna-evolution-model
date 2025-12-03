@@ -110,7 +110,7 @@ def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time)
         topology_features,  # partitioning_features
         rotation_model,     # rotation_model
         fossil_features,    # features_to_partition
-        reconstruction_time=reconstruction_time
+        reconstruction_time=0
         )
 
     # Step 5: Reconstruct the partitioned fossils

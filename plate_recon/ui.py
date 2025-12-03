@@ -165,7 +165,7 @@ def create_ui():
 
     out = Output()
     slider = IntSlider(
-        value=40, min=0, max=1000, step=5,
+        value=70, min=0, max=1000, step=5,
         description='Time (Ma)', continuous_update=False
     )
 

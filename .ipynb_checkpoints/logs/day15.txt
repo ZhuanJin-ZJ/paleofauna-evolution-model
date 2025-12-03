@@ -131,7 +131,13 @@ Now all that remained was visual cleanup:
    Sometimes a simpler, reduced case (just Tyrannosaurus, and just 4 of them for this demo) can shine a light on what the model
    is or is not doing correctly.
 
+Edit: I found the logic error. It was from setting reconstruction_time = reconstruction_time in the function partition_into_plates. 
+      As a result when original lat,lon coordinates were read, they were read at the reconstruction time rather than the present-day.
+      Hence the coordinates got "inverted". They were partitioned at the wrong time and therefore their rotations were backward.	
+
+🌊🌊🌊 NO MORE DINOSAURS IN THE OCEANNNN 🌊🌊🌊
+
 🧭 Next steps: 
  - Land to be coloured green, ocean to be coloured blue.
  - Dynamic legend with respect to dinosaur chosen (more coordinate transform headaches)
- - Investigate logic error on which fossils (present vs reconstructed) are projected where.
+ -̶ I̶n̶v̶e̶s̶t̶i̶g̶a̶t̶e̶ l̶o̶g̶i̶c̶ e̶r̶r̶o̶r̶ o̶n̶ w̶h̶i̶c̶h̶ f̶o̶s̶s̶i̶l̶s̶ (̶p̶r̶e̶s̶e̶n̶t̶ v̶s̶ r̶e̶c̶o̶n̶s̶t̶r̶u̶c̶t̶e̶d̶)̶ a̶r̶e̶ p̶r̶o̶j̶e̶c̶t̶e̶d̶ w̶h̶e̶r̶e̶.
