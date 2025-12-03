@@ -20,6 +20,9 @@ import fossils
 importlib.reload(fossils)
 from utils import log
 
+OCEAN_BLUE = "#305CDE"
+LAND_GREEN = "#a9fb4c"
+
 # Access functions via the module namespace to ensure you use the latest
 fetch_and_cache_fossils = fossils.fetch_and_cache_fossils
 reconstruct_fossil_locations = fossils.reconstruct_fossil_locations
@@ -35,7 +38,7 @@ from shapely.geometry import Polygon
 import numpy as np
 import matplotlib.patches as Patch
 
-def render_oceanmask(ax, color=(0.0, 0.2, 0.55)):
+def render_oceanmask(ax, color=OCEAN_BLUE):
     """
     Paint global ocean using a PlateCarree polygon.
     Works for all projections including Robinson.
@@ -81,7 +84,7 @@ def debug_plot_polygons(ax, time):
 
     print(f"[DEBUG] Reconstructed polygon count: {count}")
 
-def render_landmask(ax, time, facecolor='green', edgecolor='none',
+def render_landmask(ax, time, facecolor='lightgreen', edgecolor='none',
                     alpha=1.0, zorder=-30):
 
     from tectonics import reconstruct_polygons
