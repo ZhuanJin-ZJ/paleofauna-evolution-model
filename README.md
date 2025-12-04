@@ -1,5 +1,5 @@
 # paleofauna-evolution-model
-### 🔗 Live Autoplay Demo  
+### 🔗 Live Autoplay Demo (Museum)
 https://zhuanjin-zj.github.io/paleofauna-evolution-model/
 
 Model showing how paleofauna diverged as the continents collided and separated. 
