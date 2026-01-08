@@ -14,7 +14,12 @@ import cartopy.crs as ccrs
 from config import rotation_model
 from ipywidgets import IntSlider, VBox, Output
 from IPython.display import display
-from tectonics import get_plate_boundaries, reconstruct_features, reconstruct_coastlines
+from tectonics import (
+    get_plate_boundaries,
+    reconstruct_features,
+    reconstruct_coastlines,
+    reconstruct_land_polygons           # NEW
+)
 import importlib
 import fossils
 importlib.reload(fossils)
@@ -62,9 +67,9 @@ def debug_plot_polygons(ax, time):
     Quick diagnostic to verify polygon loading and reconstruction.
     Draws polygons in red so you can see if they exist and look right.
     """
-    from tectonics import reconstruct_polygons
+    from tectonics import reconstruct_land_polygons
 
-    reconstructed_polygons = reconstruct_polygons(time)
+    reconstructed_polygons = reconstruct_land_polygons(time)
 
     count = 0
     for feature in reconstructed_polygons:
@@ -86,37 +91,43 @@ def debug_plot_polygons(ax, time):
 
 def render_landmask(ax, time, facecolor='lightgreen', edgecolor='none',
                     alpha=1.0, zorder=-30):
-
-    from tectonics import reconstruct_polygons
+    """
+    Render reconstructed continental polygons using real continental crust
+    features extracted in tectonics.py. These polygons are reliable and
+    follow GPlately conventions.
+    """
     from matplotlib.patches import Polygon as MplPolygon
-    import cartopy.crs as ccrs
-
     pc = ccrs.PlateCarree()
-    reconstructed = reconstruct_polygons(time)
+
+    reconstructed = reconstruct_land_polygons(time)
 
     count = 0
     skipped = 0
 
     for feature in reconstructed:
         geom = feature.get_reconstructed_geometry()
-        if not geom or not hasattr(geom, "to_lat_lon_list"):
+        if geom is None:
             skipped += 1
             continue
 
-        # ---- ORIENTATION FILTER (the correct way) ----
+        # Coordinates
         try:
-            area = geom.get_area()  # signed spherical area
+            coords = geom.to_lat_lon_list()
         except:
             skipped += 1
             continue
 
-        if area <= 0:   # CW orientation → ocean shell
+        if not coords:
             skipped += 1
             continue
-        # -------------------------------------------------
 
-        coords = geom.to_lat_lon_list()
-        if not coords:
+        # orientation / area test
+        try:
+            area = geom.get_area()
+            if area <= 0:
+                skipped += 1
+                continue
+        except:
             skipped += 1
             continue
 
@@ -137,7 +148,7 @@ def render_landmask(ax, time, facecolor='lightgreen', edgecolor='none',
         ax.add_patch(patch)
         count += 1
 
-    print(f"[LANDMASK] Painted {count} land polygons. Skipped {skipped}.")
+    print(f"[LANDMASK] Painted {count} continental polygons. Skipped {skipped}.")
     
 def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
     for feature in reconstructed_geometries:
@@ -306,8 +317,28 @@ def create_ui():
         with out:
             out.clear_output(wait=True)
             print("🎬 Running animation...")
-            run_animation(start=0, end=70, step=5, export=False, outdir="exports", make_video=False)
-            print("✅ Animation complete. Frames saved in 'exports/'")
+    
+            # Run animation and capture arguments
+            export = False
+            make_video = False
+            outdir = "exports"
+    
+            run_animation(
+                start=0,
+                end=70,
+                step=5,
+                export=export,
+                outdir=outdir,
+                make_video=make_video
+            )
+    
+            print("✅ Animation complete.")
+    
+            if export:
+                print(f"📁 Frames saved in '{outdir}/'")
+    
+            if make_video:
+                print(f"🎞️ animation.mp4 saved in '{outdir}/'")
 
     button.on_click(on_button_click)
 
