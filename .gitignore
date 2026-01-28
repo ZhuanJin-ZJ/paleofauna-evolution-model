@@ -1,0 +1,13 @@
+# --- Python junk ---
+__pycache__/
+*.pyc
+
+# --- Input data ---
+plate_recon/data/*.csv
+
+# --- Generated outputs ---
+plate_recon/exports/
+assets/
+
+# --- Virtual environments ---
+env/
