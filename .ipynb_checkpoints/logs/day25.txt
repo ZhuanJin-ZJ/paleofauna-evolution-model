@@ -13,7 +13,26 @@ Goal: Integrate correct continental colour rendering from sandbox into museum de
   - reconstruct_coastlines now calls reconstruct_features using cob_features as argument.
 • Continent colouring works!
 • Added caching of reconstructed polygons so they do not need recalculating at each time step.
+• Disentangled the time step from the slider widget in the UI into a function render_time(), so that a panel of interactive 
+  dino icons can call it and reconstruct tectonic-fossil movement to that time. 
+  Rendering logic was previously buried inside update_plot() inside create_ui(). 
+  This is too entangled; I want multiple triggers, not exclusive tying of reconstruction time to the slider widget.
+  Therefore the rendering function was modularised into its own function render_time:
+	fig = plt.figure(...)
+	ax = fig.add_subplot(...)
+	ax.set_global()
+	ax.set_title(...)
+	plot_all(ax, time)
+	plt.show()
+  the function update_plot then simply calls: render_time(change['new'], out), making the slider just a trigger for the 
+  underlying rendering function.
+  This explicit separation now allows something like e.g. render_time(145) for one dino asset, render_time(68) for another dino...
 
-🪛 Next:
-• Disentangle the time step from the slider widget in the UI into a function render_time(), so that a panel of interactive 
-  dino icons can call it and reconstruct tectonic-fossil movement to that time.
+🪛 Next (for museum demo purposes):
+• Add a simple dictionary: DINO_TIMES = {
+				"trex":68,
+				"triceratops":70,
+				"velociraptor":75
+}
+• Build a Panel grid
+• Connect each image to render_time

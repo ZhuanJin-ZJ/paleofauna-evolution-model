@@ -219,6 +219,29 @@ def plot_all(ax, time, export=False, outdir="exports"):
     }
     draw_dynamic_legend(ax, active_layers)
 
+def render_time(time, out=None):
+    """ 
+    Core renderer for a given geological time.
+    Triggerable by slider, buttons, or museum UI.
+    """
+    if out:
+        out.clear_output(wait=True)
+
+    if out:
+        context = out
+    else:
+        from cntextlib import nullcontext
+        context = nullcontext()
+
+    with context:
+        fig = plt.figure(figsize=(12, 6))
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
+        ax.set_global()
+        ax.set_title(f"Reconstructed Plates and Fossils at {time} Ma")
+
+        plot_all(ax, time)
+        plt.show()
+
 def create_ui():
     from ipywidgets import Button
     from animation import run_animation
@@ -231,17 +254,7 @@ def create_ui():
 
     # --- Plot updater for slider ---
     def update_plot(change):
-        with out:
-            out.clear_output(wait=True)
-            time = change['new']
-
-            fig = plt.figure(figsize=(12, 6))
-            ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
-            ax.set_global()
-            ax.set_title(f"Reconstructed Plates and Fossils at {time} Ma")
-
-            plot_all(ax, time)
-            plt.show()
+        render_time(change['new'], out)
 
     slider.observe(update_plot, names='value')
 
