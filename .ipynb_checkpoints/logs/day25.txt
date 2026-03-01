@@ -12,8 +12,8 @@ Goal: Integrate correct continental colour rendering from sandbox into museum de
   - reconstructing continental polygons in rasterise_landmask() now calls reconstruct_polygons() instead of repeating logic.
   - reconstruct_coastlines now calls reconstruct_features using cob_features as argument.
 • Continent colouring works!
+• Added caching of reconstructed polygons so they do not need recalculating at each time step.
 
 🪛 Next:
-• Add caching of reconstructed polygons so they do not need recalculating at each time step.
 • Disentangle the time step from the slider widget in the UI into a function render_time(), so that a panel of interactive 
   dino icons can call it and reconstruct tectonic-fossil movement to that time.

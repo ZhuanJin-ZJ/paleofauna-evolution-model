@@ -41,7 +41,6 @@ def render_oceanmask(ax, color=OCEAN_BLUE):
     Paint global ocean using a PlateCarree polygon.
     Works for all projections including Robinson.
     """
-
     pc = ccrs.PlateCarree()
 
     # A global rectangle in lat/lon
