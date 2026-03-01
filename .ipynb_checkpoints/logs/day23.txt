@@ -1,0 +1,31 @@
+Day 23 – Vectorised Landmask Raster
+
+Date: 2026-02-07
+Goal: Improve landmask raster performance by vectorising grid evaluation.
+
+🗺️ Context: With the landmask being successfully rendered without colour spillage into the oceans, via rasters, 
+            the next step is to optimise; cut runtime. The previous approach, while successful, was ~O(N_points x N_polygons).
+	    At 1 deg resolution, 181 x 365 = 65,000 grid points
+	                                   * hundreds of polygons
+                                           * slider interaction
+            ...which is not scalable.
+
+Why vectorise: 
+   	•	Speed - instead of loops, let NumPy operate on entire arrays in C
+	•	Clean architecture - separate grid generation from polygon membership logic from mask accumulation
+	•	Scalable - to numba, multiprocessing, spatial indexing
+
+✅ Achievements
+	•	Replaced nested (lat, lon) loops with flattened meshgrid approach.
+	•	Flattened grid into 1D arrays for single-pass evaluation.
+	•	Rasterised using one loop over flattened points instead of double loop (over lat, over lon).
+
+🔍 Insights
+	•	Eliminating nested loops simplifies control flow and improves readability.
+	•	Flattened raster structure makes future optimisations (bounding boxes, masking, parallelisation) easier.
+	•	Performance bottleneck is now strictly polygon membership testing.
+
+🚧 Next steps
+	•	Introduce polygon-level spherical bounding boxes to reduce unnecessary point tests.
+	•	Explore spatial indexing or latitude band pre-bucketing.
+	•	Benchmark 1.0° vs 0.5° resolution runtime.

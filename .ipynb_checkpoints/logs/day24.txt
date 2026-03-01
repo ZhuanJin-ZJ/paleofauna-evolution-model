@@ -1,0 +1,47 @@
+Day 24 – Bounding-box Acceleration of Landmask Raster
+
+Date: 2026-02-17
+Goal: Improve landmask raster performance time with bounding boxes.
+
+🗺️ Context: On Day 23, every point on the sphere is checked against every polygon.
+	    Instead, we can rasterise using spherical boxes bounding each continental polygon, & only test points inside.
+	    This will cut runtime massively.
+
+✅ Strategy + code
+	1.	Compute spherical box bounding each reconstructed polygon: min_lat, max_lat, min_lon, max_lon.
+	2.	Determine which raster indices fall inside that box.
+	3.	Only test bounded candidate pixels with is_point_in_polygon() to produce the Boolean array landmask().
+	4.	Once we have the landmask containing points in each polygon, ax.imshow() can colour those points.
+
+	# Handle dateline wrap
+        if (max_lon - min_lon) > 180:
+            # if Polygon crosses dateline, then:
+            lon_mask = (flat_lons >= min_lon) | (flat_lons <= max_lon) 
+        else:
+            lon_mask = (flat_lons >= min_lon) & (flat_lons <= max_lon)
+
+        lat_mask = (flat_lats >= min_lat) & (flat_lats <= max_lat)
+
+	Together, lon_mask & lat_mask can form a candidate_indices mask which dramatically filters out the search space, 
+	only focusing on points in the spherical vicinity of the continental polygon under consideration
+
+	** Caution: We need to handle dateline crossing!! ** [lon_mask]
+
+	Why?
+	Because longitude has a seam, at which -180° is equivalent to +180°.
+	If a polygon spans the Pacific: [..., 170°, 175°, 179°, 180°, -179°, -175°, -170°,...], where numerically,
+	min_lon = -179° & max_lon = 179°, then max_lon-min_lon = 358°
+	The bounding box may as well span the whole globe.
+
+	Hence the criterion must switch for a dateline-crossing polygon. 
+	Normally, we have min_lon <= lons <= max_lon.
+	But when a polygon crosses the dateline, we have [170 → 180]  OR  [-180 → -170]
+	Hence, [lons >= min_lon]  *OR*  [lons <= max_lon]
+	We need this treatment to handle the coordinate discontinuity.
+
+🔍 Insights
+	•	At coordinate discontinuity (cylindrical, spherical longitude), we need to change filtering criteria.
+	•	Better conceptual understanding of bounding boxes: masks to filter the search space & therefore compute time.
+
+🚧 Next step
+	•	Integrate landmask rendering into museum-demo-v0.03 to become museum-demo-v0.04

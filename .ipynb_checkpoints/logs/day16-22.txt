@@ -1,0 +1,232 @@
+ 📐 **Day 16-22 Development Log**
+
+💣 Main challenge: Colouring the land green and the ocean blue.
+
+   This was a mammoth.
+
+🗺️ Approaches:
+  * #1 - Direct attack
+     	• Had 2 options: 
+          - For every coastline polygon, check whether each pixel is inside it. 
+            If yes, colour green. After processing all polygons, everything else is blue.
+          - For each continental polygon, paint its interior green. 
+            Paint the exterior blue except where overwritten by another polygon.    
+          Chose Option A as this was apparently simpler.  
+	• Tried to paint the whole ocean blue, fill every coastline polygon green, then integrate into plot_all
+          - Ocean: ax.add_feature(ccrs.feature.OCEAN, facecolor='lightblue', zorder=0)
+          - Continent fill: Tried a simple ax.fill(lons, lats, etc) for feature in reconstructed_coastlines
+          - Added ax.set_facecolor("lightblue") & fill_land_polygons() to plot_all().
+          - Combined ocean and continent fill into a single function render_landmask()	
+	• ValueError: Sequences of multipolygons are not valid arguments.
+          - Tried to flatten multipolygons to remove nesting
+	• AttributeError: 'ReconstructedFeatureGeometry' object has no attribute 'with_reconstructed_geometry'
+          - This means my reconstruction functions do not return Feature objects. They return ReconstructedFeatureGeometry objects
+	  - so the flattening (to remove nested multipolygons) must apply on the underlying feature geometry.
+            Therefore, extract geometry → flatten → build a new ReconstructedFeatureGeometry with the flattened geometry.
+	• AttributeError: 'ReconstructedFeatureGeometry' object has no attribute 'get_time'
+          - Tried to flatten multipolygons to remove nesting
+	• ImportError: cannot import name 'ReconstructedFeature' from pygplates
+	• RuntimeError: This class cannot be instantiated from Python
+
+ ...bottomline: This is a rabbit hole. The deeper I dig, the more the problem spirals. I figured I should switch approach.
+
+  * #2 - Separate concerns: render ocean and land separately 
+      [I learned from my mistakes; too much going on in Attempt #1]
+     	• Construct a function render_oceanmask(). 
+          This was successful. 
+          Oceans coloured blue, and continental polygons blue as well since they are not yet filled.
+	• Now onto the continents, using a new function render_landmask().
+          In the function plot_reconstructed_features(), I already plot coastlines and plate boundaries using ax.plot.
+          Question: Why can't I piggyback on a similar logic and use ax.fill each continental polygon in green?
+	  Ans: Because those reconstructed coastlines are polylines, not polygons. 
+               ax.fill() only works on closed polygonal boundaries. 
+               The polylines do not close themselves, define interior/exterior sides, maintain guaranteed winding direction.
+	• Tried directly using the pre-made polygons provided in the coastline dataset.
+          (did this in tectonics.py, no reconstruction in ui.py! No duplicate reconstruction logic, no split logic chain across modules)
+	• Added the functions load_raw_land_polygons(), reconstruct_polygons(time) to tectonics.py,
+          debug_plot_polygons() to ui.py to verify polygon loading and reconstruction. Simple plot of coastal outlines.
+          [I would like to highlight at this point the application of incremental logic; verifying baby steps like loading
+          & reconstructing base polygons, before moving to colour them. This is a marked improvement on Attempt #1.]
+	• Now that I have loaded the polygons, I should be able to directly use ax.fill() on them.
+	  - Used ax.add_patch(patch), where patch = MplPolygon(xy,closed=True,eetc.) with PlateCarree CRS instead of ax.fill()
+            as Cartopy cannot reproject raw vertices via fill.
+          
+	  It worked! However, on my map, the entire Earth was painted green. The blue oceans were painted over.
+	  Thanks to the clean separation of render_oceanmask(), I know my ocean is loading correctly as blue, so the green must 
+	  be some kind of leakage or misreading.
+	  Maybe the code thinks the ocean is one of the land polygons?
+	• Suspected that one of my land polygons isn't actually land, but instead the global shell polygon that wraps the Earth.
+          - Tried to add an area filter, a polygon-type filter and a longitude span filter to remove global shell
+	  - with the area & longitude span filter, a small patch of ocean was blue but most of the Earth remained green.
+          - For the polygon-type filter to work, I needed to call the FeatureTypes. However, 90% of the features were UnclassifiedFeature.
+	  - Tried looking at the source dataset again. In particular, examined the meaning of COB (continent-ocean boundary)
+            Contrary to prima facie expectations, COB ≠ coastlines. That meant my COB dataset may have contained coastline loops,
+            continent polygons, interior holes, ocean-basin shells, multi-polygons, mask polygons.
+	  - I also learned that in GPML coastline datasets, land polygons are oriented counterclockwise (CCW), ocean polygons CW.
+            Therefore keep polygons whose signed spherical area is positive. Added as a filter to render_landmask().
+	  - Finally decided to simply switch datasets, from the COB_polygons_and_coastlines_combined_1000_0_Merdith_etal.gpml
+	    to shapes_coastlines_Merdith_et_al.gpmlz.
+
+	    It worked! At 70 Ma...
+	    When I played the time animation from 0 to 70 Ma in time steps of 5 Ma, 
+	    I realised that the Earth was still coloured green at some snapshots of time... 
+
+  * #3 - Carve out a sandbox to attack only the land-fill issue: green spilling out from continental polygons at specific snapshots
+      [I learned from PETRI's transition from Phase I to Phase II: loading, reconstructing & plotting fossil points using the built tectonic layer.
+      Better to carve out a sandbox to ensure the fossils are even loading & plotting correctly, before integrating them with the main pipeline.]
+     	•  By this point I had some idea what was causing the continents to bleed colour at specified snapshots in time.
+	   Suppose at some initial time t, we have a loop connecting a set of vertices. This loop marks the boundary of a continental polygon, X.
+	   Now suppose time advances to time t+Δt, so that each point belonging to X is displaced by the according to the transformation applied by 
+	   the tectonic model {i.e. If each point i in X has coordinates [p_i(t),q_i(t)], then at time t+Δt they get transformed to [p_i(t+Δt),q_i(t+Δt)]}.
+
+	   It is conceivable that for certain geometries (e.g. a loop with a sharp corner) the displacement of some point j may overshoot that 
+	   of another point k, such that the loop connecting those points crosses, creating a self-intersection of the polygon.
+
+	   This has the unfortunate result that the code cannot interpret the "inside" of the polygon, and may instead read the outside 
+	   (i.e. the whole Earth) as the "inside". This would cause the Earth to be painted green, when it is really one rogue polygon. 
+	   In less severe cases, the entire latitudinal band would be painted green; cartopy's way of restricting the damage.
+
+	   The fact that this only happens with certain geometries, and only at certain reconstruction times, aligns with what the code does:
+	   most times, the oceans are blue and continents are green. 
+	   At 15, 30, 55 Ma, entire latitude bands are filled green.
+	   At 60, 65 & 70 Ma, the whole Earth is painted green.
+
+     	•  Following this train of logic, the easiest solution was to split all such multi-polygons into triangles. 
+	   The loops created by self-intersection would simply be coloured green inside. 
+	   Hence defined a function 
+	   split_if_invalid(shapely_polygon): if the polygon is valid then return it, else 
+	   lines = shapely_poly.boundary
+	   pieces = list(polygonize(lines))
+	   return [p for p in pieces if p.is_valid and p_area > 1.0]
+	   
+	   and called that function:
+	   shp = pygplates_geom_to_shapely(geom)
+	   if shp is None: skipped +=1 continue
+	   sub_polys = split_if_invalid(shp)
+
+	   then used ax.add_patch() iteratively over the xy coordinates extracted over all subpolys.
+	   
+	   The problem got better. Not completely gone, but less prevalent. At 70 Ma, the whole Earth still turned green. 
+	   But at 55 Ma, where the previous code gave a full green latitude band, now the band is gone. 
+	   Shape polygonising solved part of the problem, but there was clearly another source of error. What else could there be?
+
+* #4 - Antimeridian wrap
+     	•  The Earth is wrapped at ±180° longitude: [..., 170°, 175°, 179°, 180°, -179°, -175°, -170°,...].
+	   Numerically, that is a jump from +180° to -180°, a difference of 360°, even though geographically those two points are adjacent.
+	   If a continental polygon crosses that line... in raw coordinates it looks like a monster discontinuity.
+	   The plotting library may interpret that as a huge line that goes the long way round the globe.
+	   Result: the "inside" of the polygon becomes the outside, and the whole Earth gets filled green.
+	   Short version: This arises from feeding a wrapped globe into planar coordinates without unwrapping it first.
+	   Proposal:
+		1) Detect antimeridian crossing [crosses_antimeridian = (max_lon - min_lon) > 180]
+		2) Unwrap, shift negative longitudes into 0-360 space [if crosses_antimeridian: lons = [lon+360 if lon<0 else lon for lon in lons]]
+		3) Build Shapely polygon in continuous lat-lon space [poly = ShapelyPolygon(zip(lons, lats))]
+
+     	   At this point the failure became worse. The polygon colour bleed became even more widespread.
+	   I suspected I was going down another rabbit hole, thanks to prior experience (hello, Approach #1!)
+
+* #5 - Use Cartopy's ax.add_geometries()
+     	•  Instead of letting the tectonic reconstruction engine output correctly split geometries (esp. along antimeridian), 
+	   I was splitting them manually after the fact. This explains much of the overcomplication.
+	   Rather than this: 
+	   pygplates spherical polygon → raw lat/lon list → Shapely → Matplotlib/Cartopy
+
+	   I should be doing this: 
+	   pygplates reconstructed geometry → hand directly to Cartopy/Matplotlib as geodetic geometry and let the projection code split it.
+	  
+	   So the approach became:
+	   1) Build a clean geographic Shapely polygon [def geom_to_shapely_polygon(geom): 
+							coords = geom.to_lat_lon_list()
+							lats, lons = zip(*coords) 
+							poly = ShapelyPolygon(zip(lons, lats))
+							+ is_valid() + area filters + spherical angle filters]
+	   2) Pass it to ax.add_geometries() 
+		[for feature in reconstructed: 
+			geom = feature.get_reconstructed geometry()
+			shp = geom_to_shapely_polygon(geom)
+			geoms.append(shp)
+		
+		ax.add_geometries(geoms,...)]a
+
+	   The Earth was still turning green at 70 Ma, but the oceans were blue and continents green for 60 & 65 Ma.
+	   Latitudinal bands of green at 15, 30  and 55 Ma were also fixed.
+
+	   At this point I noticed that at 70 Ma, right as the whole Earth turnd green, 
+	   there was a single polygon right on the South Pole that was left blank. 
+	   Could this be the problem? This one, rogue polygon?
+
+	   This was a polygon that:
+		- encloses the South Pole
+		- was valid topologically
+		- did not cross the antimeridian in an obvious way
+		- but whose winding on the sphere was inverted
+
+	   On a sphere, every closed loop defines two regions: the intended interior & its complement (i.e. the rest of the planet).
+
+	   At 70 Ma, one polygon was being interpreted as: “everything except Antarctica”
+	   So when filled, Cartopy does exactly as asked: it paints the whole Earth green, except the Antarctic polygon, which remains white.
+
+	   At this point I realised I was going down another rabbit hole: the landmask polygons are topologically ambiguous on the sphere,
+	   and my fixes and filters were massages after the fact. I decided to look into what professional pygplates users do.
+
+	   Hence...
+
+* #6 - Rasterisation
+     	•  A raster is a scan pattern in which an area is scanned from side to side in lines, from top to bottom.
+
+	   Previous approaches asked "which side of this polygon is land?" (have to know polygon orientation, whether inside/outside)
+	   This approach asks: "For each point on Earth, is it inside any reconstructed land polygon?"
+
+	   Therefore it bypasses the orientation/self-intersection/multi-polygon/antimeridian/polar complement problems.
+	   + it is well-defined on the sphere.
+
+     	•  Rather than this:	
+		pygplates geometry → convert to lat/lon → force into planar polygon → guess which side is land → fill with Cartopy
+
+	   ...which will always fail at the poles...
+
+	   I should be doing this:
+		pygplates geometry → spherical rasterisation (point-in-polygon on sphere) → cache boolean grid → plot with imshow
+
+	   Define a function rasterise_landmask():
+		0) Cache landmask (before function)
+		1) Load landmask from cache
+		2) Define raster grid [lats = np.arange(-90, 90 + resolution_deg, resolution_deg), lons = np.arange(-180, 180 + resolution_deg, resolution_deg)
+		  		       landmask = np.zeros(len(lats), len(lons), dtype=bool)
+		3) Rasterise "by hand":  [because as far as I can tell, a rasterise function does not exist yet.]
+		  i)  Reconstruct land polygons
+		  ii) Spherical point in polygon test [for i, lat, in enumerate(lats):
+							  for j, lon in enumerate(lons):
+								point = pygplates.PointOnSphere()
+		
+							  for poly in polygons:
+								if poly.is_point_in_polygon(point)
+								landmask[i,j] = True
+								break
+		4) Cache [np.savez_compressed(cache_file, mask=landmask, lats, lons)]
+		return landmask, lats, lons
+
+	    Then in the function render_landmask(ax, time, resolution_deg=1.0):
+		landmask, lats, lons = rasterise_landmask()
+
+		ax.imshow(landmask.astype(float), extent=[-180,180,-90,90], etc...)
+
+
+	    🌍🌎🌏🌍🌎 AND CONTINENTS GREEEENNNN FOR ALL POINTS IN TIMEEEEEEEEE 🌏🌍🌎🌍🌎 
+
+	    AND SINCE THE OCEANMASK 🌊🌊🌊 IS ALREADY WORKING, BOTH THE LAND AND OCEANS ARE CORRECTLY RENDERINGGGGGG!!!!!
+
+💡 Insights: 
+ - "Simple" tasks may have hidden complexity. When encountering future such problems, instead of tackling the problem directly,
+   like colouring the land green and ocean blue in the same function at once, it helps to separate tasks and complete one task at a time. 
+   One ocean-renderer. One land-renderer.
+ - As with early integration of the fossil rotation phase, it helps to carve out a sandbox to isolate only the problematic code (land-rendering).
+ - There is no shame in asking how professionals solve problems like land-rendering. Not everything has to be done from scratch.
+ - I learned to identify when I am going down a rabbit hole. If patches lead to more patches lead to more patches... it's time to re-evaluate.
+
+   Meta-lesson: Identify the smallest building block of a task that you can do solidly. Do it. Then build up from there.
+
+
+🧭 Next steps: 
+ - Vectorise for more efficiency, as current computation loops over 181° x 361° ~ 64800 points.
+ - Merge sandbox code with museum-demo-v0.03 once optimised.

@@ -1,16 +1,19 @@
 # Day 25: Continental colour rendering sandbox integration + unused imports removed + redundant functions collapsed
 
+Date: 2026-03-01
+Goal: Integrate correct continental colour rendering from sandbox into museum demo master.
+
 🔧 Technical Wins:
 • Decomposed working sandbox code for correct continental colour rendering (rasters solved continent colour bleed) into existing 
   tectonics.py and ui.py modules.
-• Removed unused imports like cfeatures, scipy.spatial, pykdtree, importlib, numpy
+• Removed unused imports like cfeatures, scipy.spatial, pykdtree, importlib, numpy.
 • Removed redundancy; 
-  - landmask_features and coastlines_features previously calling the same filepath, now collapsed into cob_features
-  - reconstructing continental polygons in rasterise_landmask() now calls reconstruct_polygons() instead of repeating logic
-  - reconstruct_coastlines now calls reconstruct_features using cob_features as argument
+  - landmask_features and coastlines_features previously calling the same filepath, now collapsed into cob_features.
+  - reconstructing continental polygons in rasterise_landmask() now calls reconstruct_polygons() instead of repeating logic.
+  - reconstruct_coastlines now calls reconstruct_features using cob_features as argument.
 • Continent colouring works!
 
 🪛 Next:
-- Add caching of reconstructed polygons so they do not need recalculating at each time step.
-- Disentangle the time step from the slider widget in the UI into a function render_time(), so that a panel of interactive 
-  dino icons can call it and reconstruct tectonic-fossil movement to that time
+• Add caching of reconstructed polygons so they do not need recalculating at each time step.
+• Disentangle the time step from the slider widget in the UI into a function render_time(), so that a panel of interactive 
+  dino icons can call it and reconstruct tectonic-fossil movement to that time.
