@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+
+# Local cache
+plate_recon/cache/
+
+# OS junk
+.DS_Store
+Thumbs.db

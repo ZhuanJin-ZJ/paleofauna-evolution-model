@@ -1,27 +1,29 @@
-# Copyright (C) 2025 Zhuan Jin Yee
+# Copyright (C) 2026 Zhuan Jin Yee
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import pygplates
 import os
-import scipy.spatial
-try:
-    import pykdtree
-except ImportError:
-    pass
 import cartopy.crs as ccrs
+
 from config import rotation_model
 from ipywidgets import IntSlider, VBox, Output
 from IPython.display import display
-from tectonics import get_plate_boundaries, reconstruct_features, reconstruct_coastlines
-import importlib
+
+from tectonics import (
+    get_plate_boundaries, 
+    reconstruct_features, 
+    reconstruct_coastlines, 
+    reconstruct_polygons, 
+    rasterise_landmask
+)
+
 import fossils
-importlib.reload(fossils)
 from utils import log
 
 OCEAN_BLUE = "#305CDE"
 LAND_GREEN = "#a9fb4c"
+RES_DEG    = 1.0
 
 # Access functions via the module namespace to ensure you use the latest
 fetch_and_cache_fossils = fossils.fetch_and_cache_fossils
@@ -32,11 +34,7 @@ BASE_DIR   = os.path.dirname(os.path.dirname(__file__)) # Go up one level in the
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 T_REX_ICON = mpimg.imread(os.path.join(ASSETS_DIR, "t_rex.png"))
 
-
-from cartopy import feature as cfeature
 from shapely.geometry import Polygon
-import numpy as np
-import matplotlib.patches as Patch
 
 def render_oceanmask(ax, color=OCEAN_BLUE):
     """
@@ -57,87 +55,36 @@ def render_oceanmask(ax, color=OCEAN_BLUE):
         zorder=-50
     )
 
-def debug_plot_polygons(ax, time):
+def render_landmask(ax, time, resolution_deg=1.0):
     """
-    Quick diagnostic to verify polygon loading and reconstruction.
-    Draws polygons in red so you can see if they exist and look right.
+    Raster landmask renderer.
+    This REPLACES all polygon filling logic.
     """
-    from tectonics import reconstruct_polygons
+    polygons = reconstruct_polygons(time)
 
-    reconstructed_polygons = reconstruct_polygons(time)
+    landmask, lats, lons = rasterise_landmask(
+        polygons,
+        time,
+        resolution_deg
+    )
 
-    count = 0
-    for feature in reconstructed_polygons:
-        geom = feature.get_reconstructed_geometry()
-        if geom and hasattr(geom, 'to_lat_lon_list'):
-            coords = geom.to_lat_lon_list()
-            if coords:
-                lats, lons = zip(*coords)
-                ax.plot(
-                    lons, lats, '-', 
-                    color='red', 
-                    linewidth=0.8,
-                    transform=ccrs.Geodetic(),
-                    zorder=20
-                )
-                count += 1
+    from matplotlib.colors import ListedColormap
 
-    print(f"[DEBUG] Reconstructed polygon count: {count}")
+    cmap = ListedColormap([
+        (0, 0, 0, 0),   # Transparent ocean
+        "#89C544"
+    ])
 
-def render_landmask(ax, time, facecolor='lightgreen', edgecolor='none',
-                    alpha=1.0, zorder=-30):
-
-    from tectonics import reconstruct_polygons
-    from matplotlib.patches import Polygon as MplPolygon
-    import cartopy.crs as ccrs
-
-    pc = ccrs.PlateCarree()
-    reconstructed = reconstruct_polygons(time)
-
-    count = 0
-    skipped = 0
-
-    for feature in reconstructed:
-        geom = feature.get_reconstructed_geometry()
-        if not geom or not hasattr(geom, "to_lat_lon_list"):
-            skipped += 1
-            continue
-
-        # ---- ORIENTATION FILTER (the correct way) ----
-        try:
-            area = geom.get_area()  # signed spherical area
-        except:
-            skipped += 1
-            continue
-
-        if area <= 0:   # CW orientation → ocean shell
-            skipped += 1
-            continue
-        # -------------------------------------------------
-
-        coords = geom.to_lat_lon_list()
-        if not coords:
-            skipped += 1
-            continue
-
-        lats, lons = zip(*coords)
-        xy = list(zip(lons, lats))
-
-        patch = MplPolygon(
-            xy,
-            closed=True,
-            facecolor=facecolor,
-            edgecolor=edgecolor,
-            linewidth=0,
-            alpha=alpha,
-            zorder=zorder,
-            transform=pc
-        )
-
-        ax.add_patch(patch)
-        count += 1
-
-    print(f"[LANDMASK] Painted {count} land polygons. Skipped {skipped}.")
+    ax.imshow(
+        landmask.astype(float),
+        extent=[-180, 180, -90, 90],
+        origin="lower",
+        transform=ccrs.PlateCarree(),
+        cmap=cmap,
+        vmin=0,
+        vmax=1,
+        zorder=1
+    )
     
 def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
     for feature in reconstructed_geometries:
@@ -248,7 +195,7 @@ def plot_all(ax, time, export=False, outdir="exports"):
     reconstructed_coastlines = reconstruct_coastlines(time)
 
     render_oceanmask(ax)                                         # Paint oceans first
-    render_landmask(ax, time, facecolor='lightgreen')            # Paint landmasses
+    render_landmask(ax, time, resolution_deg=RES_DEG)            # Paint landmasses
 
     plot_reconstructed_features(ax, reconstructed_boundaries, {'polygon': 'red', 'polyline': 'blue'})
     plot_reconstructed_features(ax, reconstructed_coastlines, {'polygon': 'saddlebrown', 'polyline': 'saddlebrown'})
