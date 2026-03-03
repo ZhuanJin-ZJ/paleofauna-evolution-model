@@ -123,12 +123,22 @@ def rasterise_landmask(
     lons = np.arange(-180, 180 + resolution_deg, resolution_deg)
 
     lon_grid, lat_grid = np.meshgrid(lons, lats)
-
+    
+    # --------------------
     # Flatten grid
+    # --------------------
     flat_lats = lat_grid.ravel()
     flat_lons = lon_grid.ravel()
 
     landmask_flat = np.zeros(flat_lats.shape, dtype=bool)
+
+    # --------------------
+    # Pre-compute spherical points once
+    # --------------------
+    points = [
+        pygplates.PointOnSphere(lat, lon)
+        for lat, lon in zip(flat_lats, flat_lons)
+    ]
 
     # --------------------
     # Get land polygons
@@ -138,7 +148,6 @@ def rasterise_landmask(
     # --------------------
     # Bounding-box accelerated rasterisation
     # --------------------
-
     for poly in polygons:
 
         coords = poly.to_lat_lon_list()
@@ -165,18 +174,12 @@ def rasterise_landmask(
 
         candidate_indices = np.where(lat_mask & lon_mask)[0]
 
+        # Remove already-land points before testing
+        candidate_indices = candidate_indices[~landmask_flat[candidate_indices]]
+
         # Now only test candidates
         for idx in candidate_indices:
-
-            if landmask_flat[idx]:
-                continue
-
-            point = pygplates.PointOnSphere(
-                flat_lats[idx],
-                flat_lons[idx]
-            )
-
-            if poly.is_point_in_polygon(point):
+            if poly.is_point_in_polygon(points[idx]):
                 landmask_flat[idx] = True
 
     # Reshape back
