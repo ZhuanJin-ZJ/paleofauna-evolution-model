@@ -1,0 +1,26 @@
+# Day 27: Parallelised animation function for faster video loading
+
+Date: 2026-03-04
+
+🔧 Technical Wins:
+• Separated the frame rendering function into a helper render_frame, which run_animation then calls.
+• Used multiprocessing to run the animation logic in parallel cores. This sped up video loading time 2x.
+• Tested with 3 workers(cores) instead of 2 but no difference in results. Two workers is optimal for this laptop.
+
+🪛 Next:
+For museum demo purposes -
+• Add a simple dictionary: DINO_TIMES = {
+				"trex":68,
+				"triceratops":70,
+				"velociraptor":75
+}
+• Build a Panel grid
+• Connect each image to render_time
+
+For optimisation - 
+• Cache reconstructed fossil locations for faster compute time. 
+  Landmask (for raster colouring), continental_polygons (also raster) & theropods.csv (raw input data from PBDB) 
+  have all been cached, but I notice that the fossil locations are being reconstructed every time,
+  when it would be more efficient to reconstruct them once, then cache the results and reuse them subsequently.
+• Trim whitespace in exported .png images.
+• Investigate why exported .mp4 deep-time playbacks have the first 3-5s blank.

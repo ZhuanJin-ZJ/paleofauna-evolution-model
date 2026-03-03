@@ -265,7 +265,7 @@ def create_ui():
         with out:
             out.clear_output(wait=True)
             print("🎬 Running animation...")
-            run_animation(start=0, end=70, step=5, export=False, outdir="exports", make_video=False)
+            run_animation(start=0, end=70, step=5, export=True, outdir="exports", make_video=True, workers=2)
             print("✅ Animation complete. Frames saved in 'exports/'")
 
     button.on_click(on_button_click)
