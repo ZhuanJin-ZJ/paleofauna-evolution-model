@@ -87,10 +87,6 @@ def reconstruct_polygons(time):
             
     return polygons
 
-# --------------------------------------------------
-# RASTERISATION FUNCTION
-# --------------------------------------------------
-
 def rasterise_landmask(
     reconstructed_polygons,
     time_ma,

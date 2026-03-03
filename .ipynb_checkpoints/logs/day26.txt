@@ -1,0 +1,23 @@
+# Day 26: Filter already-land candidate indices(lat, lon) out of calculation 
+	+ Pre-compute spherical points once rather than inside hot loop
+
+Date: 2026-03-03
+Goal: Optimise rasterise function to trim compute time.
+
+🔧 Technical Wins:
+• Previously I did: for idx in candidate_indices:
+			if landmask_flat[idx]:
+				continue
+  Instead do: candidate_indices = candidate_indices[~landmask_flat[candidate_indices]]
+• Also, previously inside the inner loop I had points = [pygplates.PointOnSphere(...)] which creates a C++ object for each loop.
+  Instead, have point = [pygplates.PointOnSphere(lat, lon) for lat, lon in zip(flat_lats, flat_lons)] at grid creation before loop, 
+  then inside the loop we only nned to run the test if poly.is_point_in_polygon(points[idx]): which is computationally cheap.
+
+🪛 Next (for museum demo purposes):
+• Add a simple dictionary: DINO_TIMES = {
+				"trex":68,
+				"triceratops":70,
+				"velociraptor":75
+}
+• Build a Panel grid
+• Connect each image to render_time
