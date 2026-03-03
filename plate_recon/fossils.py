@@ -1,226 +1,149 @@
 # Copyright (C) 2026 Zhuan Jin Yee
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import pandas as pd
 import pygplates
+import requests
 import os
-import numpy as np
-from config import BASE_PATH, rotation_model  # ⬅️ import shared config
+from io import StringIO
+from config import BASE_PATH, rotation_model
+from utils import log 
 
-COB_PATH = os.path.join(BASE_PATH, 'COB_polygons_and_coastlines_combined_1000_0_Merdith_etal.gpml') # Continent-Ocean Boundary
-cob_features = pygplates.FeatureCollection(COB_PATH)
+# === Static polygons for fossil partitioning ===
+TOPOLOGY_PATH = os.path.join(BASE_PATH, 'shapes_static_polygons_Merdith_et_al.gpml')
+topology_features = pygplates.FeatureCollection(TOPOLOGY_PATH)
 
-LANDMASK_CACHE = "cache/landmask"
-RECON_CACHE = "cache/reconstructed_polygons"
+# === FETCH ===
+def fetch_fossils(query_name='Tyrannosaurus rex', limit=4):
+    url = "https://paleobiodb.org/data1.2/occs/list.csv"
+    params = {
+        'base_name': query_name,
+        'show': 'coords,time,phylo',
+        'limit': limit
+    }
+    response = requests.get(url, params=params)
+    df = pd.read_csv(StringIO(response.text))
+    log(f"✅ Raw fossils downloaded: {len(df)}")
 
-os.makedirs(LANDMASK_CACHE, exist_ok=True)
-os.makedirs(RECON_CACHE, exist_ok=True)
-
-def get_plate_boundaries(reconstruction_time):
-    if reconstruction_time > 410:
-        paths = [
-            os.path.join(BASE_PATH, '1000-410-Convergence.gpml'),
-            os.path.join(BASE_PATH, '1000-410-Divergence.gpml'),
-            os.path.join(BASE_PATH, '1000-410-Transforms.gpml'),
-            os.path.join(BASE_PATH, '1000-410-Topologies.gpml')
-        ]
-    elif 250 < reconstruction_time <= 410:
-        paths = [os.path.join(BASE_PATH, '410-250_plate_boundaries.gpml')]
-    else:
-        paths = [os.path.join(BASE_PATH, '250-0_plate_boundaries.gpml')]
-
-    features = []
-    for path in paths:
-        features += pygplates.FeatureCollection(path)
-        
-#    # 🔎 Insert test here
-#    print(f"🧱 Loaded {len(features)} topology features")
-
-#    has_polygons = 0
-#    has_plate_ids = 0
-
-#    for f in features:
-#        geom = f.get_geometry()
-#        if geom and hasattr(geom, 'to_lat_lon_list'):
-#            has_polygons += 1
-#        if f.get_reconstruction_plate_id() is not None:
-#            has_plate_ids += 1
-
-#    print(f"🧩 Features with polygons: {has_polygons}")
-#    print(f"🧭 Features with plate IDs: {has_plate_ids}")
+    df = df.dropna(subset=['lng', 'lat', 'max_ma', 'min_ma'])
+    df = df.rename(columns={'max_ma': 'early_age', 'min_ma': 'late_age'})
     
-    return features
+    # Strict filtering (optional)
+    df = df[df['accepted_name'] == 'Tyrannosaurus rex']
+    return df
 
-def extract_land_polygons():
-    polys = []
-    for feat in cob_features:
-        geom = feat.get_geometry()
-        if geom is None:
-            continue
+_cached_df = None  # Cache placeholder
 
-        gname = geom.__class__.__name__
+def fetch_and_cache_fossils(csv_path='data/theropods.csv', query_name='Tyrannosaurus rex', force_refresh=False):
+    global _cached_df
 
-        # Match PolygonOnSphere, MultiPolygonOnSphere, etc.
-        if "Polygon" in gname:
-            polys.append(feat)
+    if not force_refresh and _cached_df is not None:
+        log("✅ Loaded fossils from in-memory cache.")
+        return _cached_df
 
-    return polys
+    if not force_refresh:
+        try:
+            df = pd.read_csv(csv_path)
+            log("✅ Loaded fossils from disk cache.")
+        except FileNotFoundError:
+            df = fetch_fossils(query_name)
+            os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+            df.to_csv(csv_path, index=False)
+            log("⬇️ Fetched fossils from PBDB and cached locally.")
+    else:
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+            log("🗑️ Deleted existing fossil cache file.")
+        
+        df = fetch_fossils(query_name)
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+        df.to_csv(csv_path, index=False)
+        log("🔁 Force-refreshed fossil data and updated cache.")
 
-def reconstruct_features(features, time):
+    _cached_df = df
+    return df
+
+def clear_fossil_cache(csv_path='data/theropods.csv'):
+    global _cached_df
+    _cached_df = None
+    if os.path.exists(csv_path):
+        os.remove(csv_path)
+        log("🧨 Fully cleared fossil cache from disk and memory.")
+
+# === RECONSTRUCT ===
+from tectonics import get_plate_boundaries  # to access topologies
+
+def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time):
+    ### Reconstruct fossils that are 'alive' at the given reconstruction_time.
+    
+    # A fossil is considered "alive" if:
+    #    late_age <= reconstruction_time <= early_age
+    #    where:
+    #    - early_age = oldest known occurrence of the species (max_ma)
+    #    - late_age  = youngest known occurrence (min_ma)
+
+    # Step 1: Filter fossils
+    filtered_df = fossil_df[
+        (fossil_df['early_age'] >= reconstruction_time) #&
+#        (fossil_df['late_age'] <= reconstruction_time)
+    ]
+
+    log(f"🦴 Filtered fossil count at {reconstruction_time} Ma: {len(filtered_df)}")
+
+    # Step 2: Convert to Point features
+    fossil_features = []
+    fossil_metadata = []
+    for _, row in filtered_df.iterrows():
+        point = pygplates.PointOnSphere(float(row['lat']), float(row['lng']))
+        feature = pygplates.Feature()
+        feature.set_geometry(point)
+        if "genus" in row:
+            feature.set_name(str(row["genus"]))
+        fossil_features.append(feature)
+        fossil_metadata.append(row.to_dict()) # Save full row metadata
+
+    # Step 3: Get plate topologies for partitioning
+    topology_features = get_plate_boundaries(reconstruction_time)
+
+    # Step 4: Partition fossils into plates
+    partitioned_fossils = pygplates.partition_into_plates(
+        topology_features,  # partitioning_features
+        rotation_model,     # rotation_model
+        fossil_features,    # features_to_partition
+        reconstruction_time=0
+        )
+
+    # Step 5: Reconstruct the partitioned fossils
+    rotated_features = []
+    pygplates.reconstruct(partitioned_fossils, rotation_model, rotated_features, reconstruction_time)
+
+    # Step 6: Extract rotated coordinates
     reconstructed = []
-    pygplates.reconstruct(features, rotation_model, reconstructed, time)
+    for meta, original, rotated in zip(fossil_metadata, partitioned_fossils, rotated_features):
+        try:
+            reconstructed_geometry = rotated.get_reconstructed_geometry()
+            original_geometry = original.get_geometry()
+    
+#            # 🧪 INSERT THESE PRINTS FOR DEBUGGING
+#            print("📍 Original (present-day) fossil:", original_geometry.to_lat_lon())
+#            print("🧭 Reconstructed fossil:", reconstructed_geometry.to_lat_lon())
+    
+            lat, lon = reconstructed_geometry.to_lat_lon()
+
+            # Build dict with coordinates + metadata
+            fossil_data = {
+                'recon_lat': lat,
+                'recon_lon': lon,
+                'original_lat': original_geometry.to_lat_lon()[0],
+                'original_lon': original_geometry.to_lat_lon()[1],
+                'plate_id': original.get_reconstruction_plate_id(),
+                'age': reconstruction_time
+            }
+            # Merge metadata dictionary back in
+            fossil_data.update(meta)
+            reconstructed.append(fossil_data)
+            
+        except Exception as e:
+            log(f"❌ Could not extract geometry: {e}")
+
     return reconstructed
-
-def reconstruct_coastlines(time):
-    return reconstruct_features(cob_features, time)
-
-def reconstruct_polygons(time):
-    """
-    Reconstruct polygon features and cache lat/lon coordinates.
-    Returns list of polygons as list-of-(lat, lon) pairs.
-    """
-    cache_file = os.path.join(
-        RECON_CACHE,
-        f"{int(time)}Ma_polygons.npz"
-    )
-
-    # --------------------
-    # Load from cache
-    # --------------------
-    if os.path.exists(cache_file):
-        data = np.load(cache_file, allow_pickle=True)
-        return data["polygons"].tolist()
-
-    # --------------------
-    # Reconstruct using pygplates
-    # --------------------
-    raw_polygons = extract_land_polygons()
-
-    reconstructed = []
-    pygplates.reconstruct(
-        raw_polygons,
-        rotation_model,
-        reconstructed,
-        time
-    )
-
-    polygon_coords = []
-
-    for feat in reconstructed:
-        geom = feat.get_reconstructed_geometry()
-        if isinstance(geom, pygplates.PolygonOnSphere):
-            coords = geom.to_lat_lon_list()
-            if coords:
-                polygon_coords.append(coords)
-
-    # --------------------
-    # Save cache
-    # --------------------
-    np.savez_compressed(
-        cache_file,
-        polygons=np.array(polygon_coords, dtype=object)
-    )
-
-    return polygon_coords
-
-# --------------------------------------------------
-# RASTERISATION FUNCTION
-# --------------------------------------------------
-
-def rasterise_landmask(
-    reconstructed_polygons,
-    time_ma,
-    resolution_deg=1.0
-):
-    """
-    Spherical landmask rasterisation using point-in-polygon tests.
-    Returns:
-        landmask : 2D boolean array (lat, lon)
-        lats     : 1D latitude array
-        lons     : 1D longitude array
-    """
-
-    cache_file = (
-        f"{LANDMASK_CACHE}/"
-        f"landmask_{int(time_ma)}Ma_{resolution_deg:.2f}deg.npz"
-    )
-
-    # --------------------
-    # Load from cache
-    # --------------------
-    if os.path.exists(cache_file):
-        data = np.load(cache_file)
-        return data["mask"], data["lats"], data["lons"]
-
-    # --------------------
-    # Raster grid
-    # --------------------
-    lats = np.arange(-90, 90 + resolution_deg, resolution_deg)
-    lons = np.arange(-180, 180 + resolution_deg, resolution_deg)
-
-    lon_grid, lat_grid = np.meshgrid(lons, lats)
-
-    # Flatten grid
-    flat_lats = lat_grid.ravel()
-    flat_lons = lon_grid.ravel()
-
-    landmask_flat = np.zeros(flat_lats.shape, dtype=bool)
-
-    # --------------------
-    # Bounding-box accelerated rasterisation
-    # --------------------
-
-    for coords in reconstructed_polygons:
-        if not coords:
-            continue
-
-        # Rebuild pygplates polygon from cached coordinates
-        poly = pygplates.PolygonOnSphere(coords)
-
-        poly_lats, poly_lons = zip(*coords)
-
-        min_lat = min(poly_lats)
-        max_lat = max(poly_lats)
-        min_lon = min(poly_lons)
-        max_lon = max(poly_lons)
-
-        # Handle dateline crossing
-        crosses_dateline = (max_lon - min_lon) > 180
-
-        # Vectorised candidate mask
-        lat_mask = (flat_lats >= min_lat) & (flat_lats <= max_lat)
-
-        if crosses_dateline:
-            lon_mask = (flat_lons >= min_lon) | (flat_lons <= max_lon)
-        else:
-            lon_mask = (flat_lons >= min_lon) & (flat_lons <= max_lon)
-
-        candidate_indices = np.where(lat_mask & lon_mask)[0]
-
-        # Now only test candidates
-        for idx in candidate_indices:
-
-            if landmask_flat[idx]:
-                continue
-
-            point = pygplates.PointOnSphere(
-                flat_lats[idx],
-                flat_lons[idx]
-            )
-
-            if poly.is_point_in_polygon(point):
-                landmask_flat[idx] = True
-
-    # Reshape back
-    landmask = landmask_flat.reshape(lat_grid.shape)
-
-    # --------------------
-    # Cache
-    # --------------------
-    np.savez_compressed(
-        cache_file,
-        mask=landmask,
-        lats=lats,
-        lons=lons
-    )
-
-    return landmask, lats, lons
