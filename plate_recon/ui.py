@@ -203,7 +203,7 @@ def plot_all(ax, time, export=False, outdir="exports"):
     fossil_df = fetch_and_cache_fossils(force_refresh=FORCE_REFRESH)
     log(f"🦴 Fossil data rows: {len(fossil_df)}")
 
-    fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time)
+    fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, species_name="Tyrannosaurus_rex", limit=4, model_name="Muller2022")
     log(f"✅ Fossils reconstructed: {len(fossil_data)}")
 
     plot_fossils(ax, fossil_data, size_deg=150, original=False)  # Reconstructed

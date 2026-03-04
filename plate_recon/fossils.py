@@ -5,6 +5,7 @@ import pandas as pd
 import pygplates
 import requests
 import os
+import pickle
 from io import StringIO
 from config import BASE_PATH, rotation_model
 from utils import log 
@@ -12,6 +13,10 @@ from utils import log
 # === Static polygons for fossil partitioning ===
 TOPOLOGY_PATH = os.path.join(BASE_PATH, 'shapes_static_polygons_Merdith_et_al.gpml')
 topology_features = pygplates.FeatureCollection(TOPOLOGY_PATH)
+
+# === FOSSIL CACHE ===
+FOSSIL_CACHE_DIR = "cache/fossils"
+os.makedirs(FOSSIL_CACHE_DIR, exist_ok=True)
 
 # === FETCH ===
 def fetch_fossils(query_name='Tyrannosaurus rex', limit=4):
@@ -73,7 +78,7 @@ def clear_fossil_cache(csv_path='data/theropods.csv'):
 # === RECONSTRUCT ===
 from tectonics import get_plate_boundaries  # to access topologies
 
-def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time):
+def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time, species_name="Tyrannosaurus_rex", limit=4, model_name="Muller2022"):
     ### Reconstruct fossils that are 'alive' at the given reconstruction_time.
     
     # A fossil is considered "alive" if:
@@ -81,6 +86,16 @@ def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time)
     #    where:
     #    - early_age = oldest known occurrence of the species (max_ma)
     #    - late_age  = youngest known occurrence (min_ma)
+
+    # Step 0: Load from cache if exists
+    cache_file = os.path.join(
+        FOSSIL_CACHE_DIR,
+        f"fossils_{model_name}_{reconstruction_time}Ma_{species_name}_limit{limit}.pkl"
+    )
+
+    if os.path.exists(cache_file):
+        with open(cache_file, "rb") as f:
+            return pickle.load(f)
 
     # Step 1: Filter fossils
     filtered_df = fossil_df[
@@ -145,5 +160,8 @@ def reconstruct_fossil_locations(fossil_df, rotation_model, reconstruction_time)
             
         except Exception as e:
             log(f"❌ Could not extract geometry: {e}")
+
+    with open(cache_file, "wb") as f:
+        pickle.dump(reconstructed, f)
 
     return reconstructed
