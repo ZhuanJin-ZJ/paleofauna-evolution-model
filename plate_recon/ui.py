@@ -21,6 +21,17 @@ from tectonics import (
 import fossils
 from utils import log
 
+class Scene:
+    def __init__(self):
+        self.fig = None
+        self.ax = None
+
+        self.landmask_img = None
+        self.boundary_lines = None
+        self.coastline_lines = None
+
+        self.fossil_artists = []
+
 OCEAN_BLUE = "#305CDE"
 LAND_GREEN = "#a9fb4c"
 RES_DEG    = 1.0
@@ -54,7 +65,7 @@ def render_oceanmask(ax, color=OCEAN_BLUE):
         zorder=-50
     )
 
-def render_landmask(ax, time, resolution_deg=1.0):
+def render_landmask(ax, time, resolution_deg=1.0, img=None):
     """
     Raster landmask renderer.
     This REPLACES all polygon filling logic.
@@ -74,20 +85,27 @@ def render_landmask(ax, time, resolution_deg=1.0):
         "#89C544"
     ])
 
-    ax.imshow(
-        landmask.astype(float),
-        extent=[-180, 180, -90, 90],
-        origin="lower",
-        transform=ccrs.PlateCarree(),
-        cmap=cmap,
-        vmin=0,
-        vmax=1,
-        zorder=1
-    )
+    if img is None:
+        
+        img = ax.imshow(
+            landmask.astype(float),
+            extent=[-180, 180, -90, 90],
+            origin="lower",
+            transform=ccrs.PlateCarree(),
+            cmap=cmap,
+            vmin=0,
+            vmax=1,
+            zorder=1
+        )
+
+        return img
+    else:
+        img.set_data(landmask.astype(float))
+        return img
 
 from matplotlib.collections import LineCollection
     
-def plot_reconstructed_features(ax, reconstructed_geometries, color):
+def build_lines(reconstructed_geometries,):
     
     lines = []
     
@@ -99,14 +117,7 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color):
                 lats, lons = zip(*lat_lon_list)
                 lines.append(list(zip(lons, lats)))
 
-    if lines:
-        lc = LineCollection(
-            lines,
-            colors=color,
-            linewidths=0.5,
-            transform=ccrs.Geodetic()
-        )
-        ax.add_collection(lc)
+    return lines
                 
 def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
     """
@@ -177,6 +188,32 @@ def draw_dynamic_legend(ax, active_layers):
 
     ax.legend(handles=legend_elements, loc='lower right')
 
+def update_scene(scene, time):
+
+    ax = scene.ax
+
+    # --- Plate features ---
+    features = get_plate_boundaries(time)
+
+    boundaries = reconstruct_features(features, time)
+    coastlines = reconstruct_coastlines(time)
+
+    lines_boundaries = build_lines(boundaries)
+    lines_coast = build_lines(coastlines)
+
+    scene.boundary_lines.set_segments(lines_boundaries)
+    scene.coastline_lines.set_segments(lines_coast)
+
+    # --- Landmask ---
+    scene.landmask_img.remove()
+    scene.landmask_img = render_landmask(
+        ax,
+        time,
+        resolution_deg=RES_DEG,
+    )
+
+    scene.fig.canvas.draw_idle()
+
 def plot_all(ax, time, export=False, outdir="exports"):
     print(f"⏳ Reconstructing for time: {time} Ma")
     ### SANITY CHECK FOR WHY IMAGES WERE NOT SHOWING
@@ -245,32 +282,57 @@ def plot_all(ax, time, export=False, outdir="exports"):
 
     print("Total time:", pytime.perf_counter() - t0)
 
-def render_time(time, out=None):
-    """ 
-    Core renderer for a given geological time.
-    Triggerable by slider, buttons, or museum UI.
-    """
-    if out:
-        out.clear_output(wait=True)
 
-    if out:
-        context = out
-    else:
-        from cntextlib import nullcontext
-        context = nullcontext()
+def create_scene(initial_time=70):
 
-    with context:
-        fig = plt.figure(figsize=(12, 6))
-        ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
-        ax.set_global()
-        ax.set_title(f"Reconstructed Plates and Fossils at {time} Ma")
+    scene = Scene()
 
-        plot_all(ax, time)
-        plt.show()
+    fig = plt.figure(figsize=(12,6))
+    ax = fig.add_subplot(1,1,1, projection=ccrs.Robinson())
+    ax.set_global()
 
+    scene.fig = fig
+    scene.ax = ax
+
+    render_oceanmask(ax)
+
+    # --- Initial tectonics ---
+    features = get_plate_boundaries(initial_time)
+    boundaries = reconstruct_features(features, initial_time)
+    coastlines = reconstruct_coastlines(initial_time)
+
+    lines1 = build_lines(boundaries)
+    lines2 = build_lines(coastlines)
+
+    scene.boundary_lines = LineCollection(
+        lines1,
+        colors='blue',
+        linewidths=0.5,
+        transform=ccrs.Geodetic()
+    )
+
+    scene.coastline_lines = LineCollection(
+        lines2,
+        colors='saddlebrown',
+        linewidths=0.5,
+        transform=ccrs.Geodetic()
+    )
+
+    ax.add_collection(scene.boundary_lines)
+    ax.add_collection(scene.coastline_lines)
+
+    # --- Landmask ---
+    scene.landmask_img = render_landmask(ax, initial_time)
+
+    plt.close(fig)
+
+    return scene
+    
 def create_ui():
     from ipywidgets import Button
     from animation import run_animation
+
+    scene = create_scene(initial_time=70)
 
     out = Output()
     slider = IntSlider(
@@ -280,7 +342,10 @@ def create_ui():
 
     # --- Plot updater for slider ---
     def update_plot(change):
-        render_time(change['new'], out)
+        with out:
+            out.clear_output(wait=True)
+            update_scene(scene, change['new'])
+            display(scene.fig)
 
     slider.observe(update_plot, names='value')
 
