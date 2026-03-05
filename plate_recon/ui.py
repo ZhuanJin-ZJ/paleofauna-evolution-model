@@ -84,22 +84,29 @@ def render_landmask(ax, time, resolution_deg=1.0):
         vmax=1,
         zorder=1
     )
+
+from matplotlib.collections import LineCollection
     
-def plot_reconstructed_features(ax, reconstructed_geometries, color_map):
+def plot_reconstructed_features(ax, reconstructed_geometries, color):
+    
+    lines = []
+    
     for feature in reconstructed_geometries:
         geom = feature.get_reconstructed_geometry()
         if hasattr(geom, 'to_lat_lon_list'):
             lat_lon_list = geom.to_lat_lon_list()
             if lat_lon_list:
                 lats, lons = zip(*lat_lon_list)
-                ax.plot(
-                    lons, lats, '-', 
-                    color=color_map.get(
-                        'polygon' if 'Polygon' in geom.__class__.__name__ else 'polyline',
-                        'black'
-                    ),
-                    transform=ccrs.Geodetic(), linewidth=0.5
-                )
+                lines.append(list(zip(lons, lats)))
+
+    if lines:
+        lc = LineCollection(
+            lines,
+            colors=color,
+            linewidths=0.5,
+            transform=ccrs.Geodetic()
+        )
+        ax.add_collection(lc)
                 
 def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
     """
@@ -188,28 +195,44 @@ def plot_all(ax, time, export=False, outdir="exports"):
 #            transform=ax.projection,
 #            zorder=50
 #        )
-    
+    import time as pytime
+    t0 = pytime.perf_counter()
+
+    t1 = pytime.perf_counter()
     features = get_plate_boundaries(time)
     reconstructed_boundaries = reconstruct_features(features, time)
     reconstructed_coastlines = reconstruct_coastlines(time)
+    print("Tectonics:", pytime.perf_counter() - t1)
 
+    t2 = pytime.perf_counter()
     render_oceanmask(ax)                                         # Paint oceans first
+    print("Ocean mask:", pytime.perf_counter() - t2)
+
+    t3 = pytime.perf_counter()
     render_landmask(ax, time, resolution_deg=RES_DEG)            # Paint landmasses
+    print("Land mask:", pytime.perf_counter() - t3)
 
-    plot_reconstructed_features(ax, reconstructed_boundaries, {'polygon': 'red', 'polyline': 'blue'})
-    plot_reconstructed_features(ax, reconstructed_coastlines, {'polygon': 'saddlebrown', 'polyline': 'saddlebrown'})
+    t4 = pytime.perf_counter()
+    plot_reconstructed_features(ax, reconstructed_boundaries, 'blue')
+    plot_reconstructed_features(ax, reconstructed_coastlines, 'saddlebrown')
+    print("Plate features:", pytime.perf_counter() - t4)
 
+    t5 = pytime.perf_counter()
     FORCE_REFRESH = False  # or make it a UI toggle
     fossil_df = fetch_and_cache_fossils(force_refresh=FORCE_REFRESH)
     log(f"🦴 Fossil data rows: {len(fossil_df)}")
 
     fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, species_name="Tyrannosaurus_rex", limit=4, model_name="Muller2022")
     log(f"✅ Fossils reconstructed: {len(fossil_data)}")
+    print("Fossils:", pytime.perf_counter() - t5)
 
+    t6 = pytime.perf_counter()
     plot_fossils(ax, fossil_data, size_deg=150, original=False)  # Reconstructed
     plot_fossils(ax, fossil_data, size_deg=100, original=True)   # Present-day
     plot_fossil_vectors(ax, fossil_data, color='red')            # Arrows between them
+    print("Fossil plotting:", pytime.perf_counter() - t6)
 
+    t7 = pytime.perf_counter()
     active_layers = {
     'reconstructed_fossils': True,
     'present_day_fossils': True,
@@ -218,6 +241,9 @@ def plot_all(ax, time, export=False, outdir="exports"):
     'plate_boundaries': True,
     }
     draw_dynamic_legend(ax, active_layers)
+    print("Legend:", pytime.perf_counter() - t7)
+
+    print("Total time:", pytime.perf_counter() - t0)
 
 def render_time(time, out=None):
     """ 
