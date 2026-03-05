@@ -1,0 +1,35 @@
+Day 28 – Caching fossil reconstructions + time windows to identify highest-leverage performance gains + trimming 2s compute time
+
+Date: 2026-03-05
+Goal: Improve compute time; each frame takes 12-13s to load. Scaled to 15 frames, takes 3 minutes. Too long.
+
+🔧 Technical Wins:
+	• 	Created file cache for fossil reconstructions using the tectonic model, which can be re-used without recomputing;
+		saving time. Appropriate naming schema: fossils_tectonicmodel_timeslice_species_number was used on each cached reconstruction.
+		After caching, compute time slashed 12s → 9.5s.
+
+		I expected reconstructions to be more time-expensive, so was surprised. 
+		Decided to investigate where compute time was coming from, which led to...
+
+	• 	Implemented time trackers on all 7 plotting functions in the function plot_all(). 
+		Most expensive function was the plate boundary and coastline reconstructions, which took 6.5s out of 9.5s.
+		
+		I realised those could be cached as well.
+		But more importantly I was doing 
+			for feature in reconstructed_geometries:
+			    ...
+			    ax.plot(...)
+
+		Each ax.plot call is expensive.
+
+	• 	Instead,  I took all the lat-lon coordinates and appended it to a lines = [], then added it to a LineCollection()
+		and used ax.add_collection(). Trimmed 6.5s → 4-5s.
+
+🔍 Insights
+	•	Understood value of caching; compute once, then use precomputed object without recalculation.
+	•	Time windows allow triangulation of performance bottlenecks, which can be made increasingly granular
+	•	If something can be precomputed once, that is generally more efficient than having to recreate the structure every time
+		(axes, grid, coordinate transform)
+
+🚧 Next step
+	•	Further performance optimisations; I think ui.py recreates many objects that do not need re-creating.
