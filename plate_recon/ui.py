@@ -86,18 +86,19 @@ def render_landmask(ax, time, resolution_deg=1.0):
     )
 
 from matplotlib.collections import LineCollection
+import numpy as np
     
 def plot_reconstructed_features(ax, reconstructed_geometries, color):
-    
+
     lines = []
-    
-    for feature in reconstructed_geometries:
-        geom = feature.get_reconstructed_geometry()
-        if hasattr(geom, 'to_lat_lon_list'):
-            lat_lon_list = geom.to_lat_lon_list()
-            if lat_lon_list:
-                lats, lons = zip(*lat_lon_list)
-                lines.append(list(zip(lons, lats)))
+
+    for lat_lon_list in reconstructed_geometries:
+
+        if not lat_lon_list:
+            continue
+
+        lats, lons = zip(*lat_lon_list)
+        lines.append(np.column_stack((lons, lats)))
 
     if lines:
         lc = LineCollection(
@@ -106,6 +107,7 @@ def plot_reconstructed_features(ax, reconstructed_geometries, color):
             linewidths=0.5,
             transform=ccrs.Geodetic()
         )
+
         ax.add_collection(lc)
                 
 def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):

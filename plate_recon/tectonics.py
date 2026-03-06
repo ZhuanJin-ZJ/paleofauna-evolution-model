@@ -4,13 +4,31 @@
 import pygplates
 import os
 import numpy as np
+import pickle
 from config import BASE_PATH, rotation_model  # ⬅️ import shared config
 
 COB_PATH = os.path.join(BASE_PATH, 'COB_polygons_and_coastlines_combined_1000_0_Merdith_etal.gpml') # Continent-Ocean Boundary
 cob_features = pygplates.FeatureCollection(COB_PATH)
 
-LANDMASK_CACHE = "cache/landmask"
-os.makedirs(LANDMASK_CACHE, exist_ok=True)
+BOUNDARIES_CACHE = "cache/boundaries"
+COASTLINES_CACHE = "cache/coastlines"
+LANDMASK_CACHE   = "cache/landmask"
+
+os.makedirs(BOUNDARIES_CACHE, exist_ok=True)
+os.makedirs(COASTLINES_CACHE, exist_ok=True)
+os.makedirs(LANDMASK_CACHE,   exist_ok=True)
+
+def load_cache(cache_file, label=""):
+    if os.path.exists(cache_file):
+        if label:
+            print(f"⚡ Loading cached {label}")
+        with open(cache_file, "rb") as f:
+            return pickle.load(f)
+    return None
+
+def save_cache(cache_file, data):
+    with open(cache_file, "wb") as f:
+        pickle.dump(data, f)
 
 def get_plate_boundaries(reconstruction_time):
     if reconstruction_time > 410:
@@ -47,6 +65,54 @@ def get_plate_boundaries(reconstruction_time):
     
     return features
 
+def reconstruct_to_lines(features, time):
+
+    reconstructed = []
+    pygplates.reconstruct(features, rotation_model, reconstructed, time)
+
+    lines = []
+
+    for r in reconstructed:
+        geom = r.get_reconstructed_geometry()
+        if geom is None:
+            continue
+        try:
+            coords = geom.to_lat_lon_list()
+            if coords:
+                lines.append(coords)
+        except Exception:
+            continue
+
+    return lines
+
+def reconstruct_layer(features, time, cache_dir, layer_name):
+    cache_file = f"{cache_dir}/{layer_name}_{int(time)}Ma.pkl"
+
+    cached = load_cache(cache_file, layer_name)
+    if cached is not None:
+        return cached
+
+    lines = reconstruct_to_lines(features, time)
+    save_cache(cache_file, lines)
+    
+    return lines
+
+def reconstruct_features(features, time):
+    return reconstruct_layer(
+        features,
+        time, 
+        BOUNDARIES_CACHE,
+        "boundaries"
+    )
+
+def reconstruct_coastlines(time):
+    return reconstruct_layer(
+        cob_features,
+        time, 
+        COASTLINES_CACHE,
+        "coastlines"
+    )
+
 def load_raw_land_polygons():
     polys = []
     for feat in cob_features:
@@ -61,14 +127,6 @@ def load_raw_land_polygons():
             polys.append(feat)
 
     return polys
-
-def reconstruct_features(features, time):
-    reconstructed = []
-    pygplates.reconstruct(features, rotation_model, reconstructed, time)
-    return reconstructed
-
-def reconstruct_coastlines(time):
-    return reconstruct_features(cob_features, time)
 
 def reconstruct_polygons(time):
     """
