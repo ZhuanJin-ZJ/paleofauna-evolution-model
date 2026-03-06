@@ -124,6 +124,8 @@ def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
     If original=True  → draw grey dots
     If original=False → draw T. rex image icons
     """
+    artists = []
+    
     pc = ccrs.PlateCarree()
     proj = ax.projection # Robinson projection used in the figure
 
@@ -133,14 +135,17 @@ def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
 
         if original:
             # --- Present-day fossils: grey dots ---
-            ax.plot(
+            artist = ax.plot(
                 lon, lat, 'o',
                 transform=ccrs.Geodetic(),
                 color='gray',
                 markersize=3,
                 alpha=0.6,
                 zorder=5
-            )
+            )[0]
+
+            artists.append(artist)
+            
         else:
             # --- Reconstructed fossils: image icons ---
             # Transform (lon, lat) into Robinson projected coordinates
@@ -149,7 +154,7 @@ def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
             # Size in projected units (rough guess: degrees → projection scale)
             d = size_deg * 10000
 
-            ax.imshow(
+            artist = ax.imshow(
                 T_REX_ICON,
                 extent=[x - d, x + d, y - d, y + d],
                 transform=proj,   # NOT PlateCarree anymore
@@ -158,18 +163,28 @@ def plot_fossils(ax, fossil_data, size_deg=1.0, original=False):
                 zorder=10
             )
 
+            artists.append(artist)
+    return artists
+
 def plot_fossil_vectors(ax, fossil_data, color='red'):
+
+    artists = []
+    
     for fossil in fossil_data:
         orig_lat = fossil['original_lat']
         orig_lon = fossil['original_lon']
         recon_lat = fossil['recon_lat']
         recon_lon = fossil['recon_lon']
 
-        ax.plot(
+        artist = ax.plot(
             [orig_lon, recon_lon], [orig_lat, recon_lat],
             transform=ccrs.Geodetic(), color=color,
             linewidth=0.7, alpha=0.7
-        )
+        )[0]
+        
+        artists.append(artist)
+        
+    return artists
 
 def draw_dynamic_legend(ax, active_layers):
     from matplotlib.lines import Line2D
@@ -189,10 +204,18 @@ def draw_dynamic_legend(ax, active_layers):
     ax.legend(handles=legend_elements, loc='lower right')
 
 def update_scene(scene, time):
+    
+    print(f"⏳ Reconstructing for time: {time} Ma")
+    
+    import time as pytime
+    t0 = pytime.perf_counter()
 
     ax = scene.ax
+    ax.set_title(f"Reconstructed Plates and Fossils at {time} Ma")
 
     # --- Plate features ---
+    t1 = pytime.perf_counter()
+
     features = get_plate_boundaries(time)
 
     boundaries = reconstruct_features(features, time)
@@ -204,15 +227,70 @@ def update_scene(scene, time):
     scene.boundary_lines.set_segments(lines_boundaries)
     scene.coastline_lines.set_segments(lines_coast)
 
+    print("Tectonics:", pytime.perf_counter() - t1)
+
     # --- Landmask ---
+    t2 = pytime.perf_counter()
+    
     scene.landmask_img.remove()
     scene.landmask_img = render_landmask(
         ax,
         time,
-        resolution_deg=RES_DEG,
+        resolution_deg=RES_DEG
     )
 
+    print("Land mask:", pytime.perf_counter() - t2)
+
+    # --- Fossils ---
+    t3 = pytime.perf_counter()
+    
+    for artist in scene.fossil_artists:
+        artist.remove()
+
+    scene.fossil_artists.clear()
+
+    FORCE_REFRESH = False  # or make it a UI toggle
+
+    fossil_df = fetch_and_cache_fossils(force_refresh=FORCE_REFRESH)
+    log(f"🦴 Fossil data rows: {len(fossil_df)}")
+
+    fossil_data = reconstruct_fossil_locations(fossil_df, rotation_model, time, species_name="Tyrannosaurus_rex", limit=4, model_name="Muller2022")
+    log(f"✅ Fossils reconstructed: {len(fossil_data)}")
+
+    print("Fossils:", pytime.perf_counter() - t3)
+
+    t4 = pytime.perf_counter()
+    
+    artists = []
+
+    artists += plot_fossils(ax, fossil_data, size_deg=150, original=False)  # Reconstructed
+    artists += plot_fossils(ax, fossil_data, size_deg=100, original=True)   # Present-day
+    artists += plot_fossil_vectors(ax, fossil_data, color='red')            # Arrows between them
+
+    scene.fossil_artists = artists
+
+    print("Fossil plotting:", pytime.perf_counter() - t4)
+
+    # --- Legend ---
+    t5 = pytime.perf_counter()
+
+    active_layers = {
+    'reconstructed_fossils': True,
+    'present_day_fossils': True,
+    'vectors': True,
+    'coastlines': True,
+    'plate_boundaries': True,
+    }
+    draw_dynamic_legend(ax, active_layers)
+    print("Legend:", pytime.perf_counter() - t5)
+
+    # --- Render ---
+    t6 = pytime.perf_counter()
     scene.fig.canvas.draw_idle()
+    print("Render:", pytime.perf_counter() - t6)
+
+    print("Total time:", pytime.perf_counter() - t0)    
+
 
 def plot_all(ax, time, export=False, outdir="exports"):
     print(f"⏳ Reconstructing for time: {time} Ma")

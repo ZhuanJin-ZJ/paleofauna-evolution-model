@@ -3,7 +3,7 @@
 
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-from ui import plot_all
+from ui import update_scene
 import utils
 import os
 from export_movie import make_mp4
