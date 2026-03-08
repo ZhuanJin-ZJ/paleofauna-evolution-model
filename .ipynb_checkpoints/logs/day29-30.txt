@@ -1,0 +1,133 @@
+ 📐 **Day 29-30 Development Log**
+
+Date: 2026-03-08
+
+Goal: Further code optimisations; caching & compute time
+
+🔧 Technical Wins:
+	• Implemented caching of reconstructed tectonic plate boundaries and coastlines, adding to the list of already-cached 
+	  features: reconstructed land polygons, landmasks, reconstructed fossil locations. Caching precomputed features saves time.
+	• Refactored feature & coastlines caching into separate functions; one for saving as cache, one for loading the cached file 
+	  if it exists else reconstructing features, and a refactored reconstruct_to_lines function. 
+	  This modularity avoids code repetition.
+	• Runtime cut to ~7s for each frame.
+
+To further cut runtime, I considered the following options:
+	- caching the frame (i.e. At the UI step before plotting, so that plotting only renders an already-computed output).
+				tectonics
+				 ↓
+				fossils
+				 ↓
+				UI
+				 ↓
+				plotting
+	- a global cache encapsulating reconstructed tectonic plate boundaries and coastlines, reconstructed land polygons, landmasks, 
+	  reconstructed fossil locations.
+	- Turning plotting into a function of state rather than pointwise re-rendering.
+
+None of these considerations led to direct code changes. But they were important exploration to know whether my existing architectural
+approach was indeed the ideal way forward, or if there were more efficient ways.
+In future, some of these changes may be implemented. But for now, the current approach is sufficient as my existing approach has 90%
+of the yield of these approaches for no added complexity.
+
+⚖️ Considerations:
+  * #1 - Caching the frame
+     	• An obvious speed upgrade. Then runtime would mostly come from rendering, not computation. 
+	  However, notice:
+		tectonics (parameter: tectonic_model)
+		 ↓
+		fossils   (parameters: species, number_of_specimens)
+		 ↓
+		UI        (parameter: time_slice)
+		 ↓
+		plotting
+
+	  Meaning today I precompute all frames running from 0-70 Ma in steps of 5 Ma, for 4 T.rex...
+	  What if a user tomorrow changes it to Triceratops?
+	  All 15 frames will have to be computed again.
+	  What if the species number changes to 73 Triceratops?
+	  All combinations thereof will be cached, and take up scarce memory space on an 8 year-old laptop.
+	
+	  The bigger point is that state space rapidly explodes -
+	  tectonics(models) x fossils(species, number) x time_slices
+
+	  The goal is to save time, but complexity rapidly expands if every single frame combination is cached. 
+
+  * #2 - Global master cache
+     	• This would not even save time. This would mostly act as a consolidated cache manager.
+	  But because of the same problem - state space rapidly explodes:
+	  tectonics(models) x fossils(species, number) x time_slices
+	  I would be caching an absurd amount of combinations. Again, added complexity for minimal gain.
+	  Solving a problem no one asked me to solve.
+
+  * #3 - Plotting as a function of state rather than pointwise re-rendering.
+
+	Approach:
+     	•  Define a class object 'Scene'
+			class Scene:
+			    def __init__(self):
+			        self.fig = None
+			        self.ax = None
+
+			        self.landmask_img = None
+			        self.boundary_lines = None
+			        self.coastline_lines = None
+
+			        self.fossil_artists = []
+
+	   So that all key scientific outputs are stored as functions of state
+
+     	•  Then build the functions create_scene() to initialise Scene, and update_scene to iteratively build out the other frames...
+	   As opposed to the existing approach where every slider move recomputes tectonics, recomputes fossils, redraws landmask, recreates matplotlib artists.
+	   
+	   Plainly, instead of:
+		render_landmask(ax, time)
+		plot_reconstructed_features(...)
+		plot_fossils(...)
+
+	   We simply have:
+		create once
+		update thereafter
+
+	   In theory, this sounded elegant. The plot_all() function was refactored into update_scene().
+	   In practice, there was virtually no time saved. The time trackers from Day 28, I ported over.
+	   Previously, the bottleneck in my plot_all() approach was plotting the plate features.
+	   This time, the bottleneck was landmask rendering.
+	   The idea was the landmask should update on itself, i.e.
+		scene.landmask_img = render_landmask(ax, time, RES_DEG, img=scene.landmask_img)
+	   However in practice this caused the continents to "spill out" of their boundaries. A projection issue.
+	   The way I tried to solve it was with
+		scene.landmask_img.remove()
+		scene.landmask_img = render_landmask(ax, time, RES_DEG, img=scene.landmask_img)
+	   But that meant deleting the landmask every time and re-rendering it, defeating the whole purpose of updating as a function of state.
+	   And in terms of concrete outcomes, it pushed the rendering time right up from 0.04s to 4.5s because of the re-projection,
+	   which was exactly the computational bottleneck in my earlier plot_all() approach.
+	   Overall, there was no change to overall compute time ~7-9s and it may have in fact been slower.
+	   I ditched this approach.
+
+💡 Insights: 
+ - Caching sounds great, but what are you caching? You can save on rendering time, but if the state space explodes, you raise the memory storage.
+ - A different approach may sound great but if it does not buy you concrete wins, is it worth doing?
+ - Sometimes "optimisation" incurs tradeoffs (time vs memory). 
+ - Question: what are you optimising toward? What is your objective function?
+ - Caching at the layer level, rather than caching at the output level, was the correct layer of abstraction for an engine that aims to support 
+   20++ different species, >1000 specimens each; especially one designed for interactivity where the selectin criteria are always changing.
+
+🧭 Next steps: 
+For museum demo purposes -
+• Add a simple dictionary: DINO_TIMES = {
+				"trex":68,
+				"triceratops":70,
+				"velociraptor":75
+}
+• Build a Panel grid
+• Connect each image to render_time
+• Build an interactive_renderer.py module for hover-click-pop-ups. The current matplotlib renderer that lives in ui.py is insufficient.
+
+For optimisation - 
+• Cache reconstructed fossil locations for faster compute time. 
+  Landmask (for raster colouring), continental_polygons (also raster) & theropods.csv (raw input data from PBDB) 
+  have all been cached, but I notice that the fossil locations are being reconstructed every time,
+  when it would be more efficient to reconstruct them once, then cache the results and reuse them subsequently.
+• Trim whitespace in exported .png images.
+• Investigate why exported .mp4 deep-time playbacks have the first 3-5s blank.
